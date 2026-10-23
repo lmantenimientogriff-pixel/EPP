@@ -280,8 +280,13 @@ function nuevaEntrega(dni){
   if(dni)elegirTrabajador(dni);
 }
 async function elegirTrabajador(dni){
-  let j;try{j=await getPersona(dni)}catch(e){mostrarToast(e.message,'err');return}
-  trab=j.persona;trabData=j;
+  // Se arma la entrega al instante con los datos ya cargados en el dispositivo;
+  // el historial y el estado según matriz llegan después, sin bloquear la carga.
+  trab=D.personas.find(p=>p.dni===dni);
+  if(!trab){let j;try{j=await getPersona(dni)}catch(e){mostrarToast(e.message,'err');return}trab=j.persona}
+  trabData=cachePer.get(dni)||{persona:trab,entregas:[],cumplimiento:null,cargando:true};
+  if(trabData.cargando)getPersona(dni).then(j=>{if(trab&&trab.dni===dni){trabData=j;renderSugeridos();infoPrevio()}})
+    .catch(e=>{if(trab&&trab.dni===dni)q('sugeridos').innerHTML='<div class="ayuda">No se pudo consultar el historial ('+esc(e.message)+'). Podés registrar la entrega igual.</div>'});
   const emp=D.empresas[trab.empresa];
   let alerta='';
   if(!emp)alerta=`<div class="alert">Este trabajador <b>no tiene razón social asignada</b>. RRHH debe cargar la columna razon_social en la pestaña PERSONAS. No se puede registrar la entrega.${trab.sugerida?'<br>Sugerida por área: '+esc(empTxt(trab.sugerida)):''}</div>`;
@@ -299,6 +304,7 @@ async function elegirTrabajador(dni){
 }
 function renderSugeridos(){
   const c=trabData.cumplimiento;
+  if(!c){q('sugeridos').innerHTML='<div class="ayuda" style="margin-bottom:8px">⏳ Consultando historial y estado según matriz… podés ir cargando la entrega.</div>';return}
   if(c.sinMatriz){q('sugeridos').innerHTML='<div class="alert w">El puesto no tiene matriz de EPP. Se puede entregar igual; SSMA debe incorporarlo a la Matriz de EPP por puesto.</div>';return}
   q('sugeridos').innerHTML=`<div class="ayuda" style="margin-bottom:6px">Obligatorio según Matriz de EPP ${esc(c.revision)} · puesto ${esc(c.puestoMatriz)} (tocá para precargar):</div>`+
     c.items.map((i,k)=>`<div class="req" style="cursor:pointer" onclick="precargar('I',${k})"><span>${esc(i.tipo)}<br><span class="x">${i.estado==='SIN CATÁLOGO'?'No hay artículo cargado en el catálogo':i.ultima?'Última: '+fmt(i.ultima):'Nunca entregado'}${i.vence?' · vence '+fmt(i.vence):''}</span></span>${pillEstado(i.estado)}</div>`).join('')+
@@ -328,6 +334,7 @@ function cascada(n){
 }
 function infoPrevio(){
   const t=q('selTipo').value;if(!trabData||!t){q('prevInfo').textContent='';return}
+  if(trabData.cargando){q('prevInfo').textContent='Consultando entregas previas…';return}
   const p=trabData.entregas.find(e=>e.tipo===t);
   q('prevInfo').textContent=p?`Entrega previa de ${t}: ${fmt(p.fecha)} — ${p.modelo} (${p.motivo})`:`Sin entrega previa de ${t}`;
 }
