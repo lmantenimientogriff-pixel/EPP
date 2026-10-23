@@ -93,6 +93,7 @@ input.edit{border:2px solid var(--B)}
     <button class="btn s" onclick="nuevaEntrega()">📦 Nueva entrega<small>Registrar EPP con firma del trabajador</small></button>
     <button class="btn s" onclick="goTo('v-buscar')">👤 Consultar trabajador<small>Historial, estado según matriz y constancia SRT 299/11</small></button>
     <button class="btn s" onclick="abrirPanel()">📊 Panel de control<small>Cumplimiento por razón social y depósito</small></button>
+    <button class="btn s" onclick="refrescarDatos()" style="padding:12px;text-align:center;font-size:14px">↻ Actualizar datos de la planilla</button>
   </div>
 </section>
 
@@ -226,9 +227,9 @@ function pillEstado(e){return {'EN REGLA':'<span class="pill g">EN REGLA</span>'
 
 // ===================== INICIO =====================
 async function cargar(){
-  let local=null;try{local=JSON.parse(localStorage.getItem('eppInit')||'null')}catch(e){}
+  let local=null;try{local=JSON.parse(localStorage.getItem('eppInit2')||'null')}catch(e){}
   if(local){D=local;pintarInicio()}                       // abre al instante con lo último conocido
-  try{const j=await api({action:'init'},!!local);D=j;try{localStorage.setItem('eppInit',JSON.stringify(j))}catch(e){}pintarInicio()}
+  try{const j=await api({action:'init'},!!local);D=j;if(j.personas.length){try{localStorage.setItem('eppInit2',JSON.stringify(j))}catch(e){}}pintarInicio()}
   catch(e){if(!local){mostrarToast('No se pudo conectar: '+e.message,'err');return}}
   api({action:'dashboard'},true).then(j=>panelData=j).catch(()=>{});   // precarga del panel
 }
@@ -252,12 +253,22 @@ function guardarCtx(){
 }
 
 // ===================== BUSCADOR =====================
+const norm=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9Ñ ]/g,' ').replace(/\s+/g,' ').trim();
 function buscar(inp,res,cb){
-  const t=q(inp).value.trim().toUpperCase();const box=q(res);
+  const t=norm(q(inp).value);const box=q(res);
   if(t.length<2){box.innerHTML='';return}
-  const r=D.personas.filter(p=>p.nombre.includes(t)||p.dni.includes(t)).slice(0,30);
-  box.innerHTML=r.map(p=>`<div data-dni="${p.dni}">${esc(p.nombre)}<br><small>DNI ${p.dni} · ${esc(p.puesto)} · ${p.empresa?esc(empTxt(p.empresa)):'<b style="color:var(--R)">SIN RAZÓN SOCIAL</b>'}</small></div>`).join('')||'<div><small>Sin resultados</small></div>';
+  if(!D||!D.personas||!D.personas.length){box.innerHTML='<div><small>No hay personal cargado. Actualizando datos…</small></div>';refrescarDatos();return}
+  const pal=t.split(' ');
+  const r=D.personas.filter(p=>{const n=norm(p.nombre)+' '+p.dni;return pal.every(w=>n.includes(w))}).slice(0,30);
+  box.innerHTML=r.map(p=>`<div data-dni="${p.dni}">${esc(p.nombre)}<br><small>DNI ${p.dni} · ${esc(p.puesto)} · ${p.empresa?esc(empTxt(p.empresa)):'<b style="color:var(--R)">SIN RAZÓN SOCIAL</b>'}</small></div>`).join('')||`<div><small>Sin resultados entre ${D.personas.length} personas habilitadas</small></div>`;
   box.querySelectorAll('[data-dni]').forEach(d=>d.onclick=()=>{box.innerHTML='';q(inp).value='';cb(d.dataset.dni)});
+}
+let _refrescando=false;
+async function refrescarDatos(){            // fuerza a releer la planilla (descarta caché del servidor y del dispositivo)
+  if(_refrescando)return;_refrescando=true;
+  try{await api({action:'refrescar'},true);const j=await api({action:'init'});D=j;try{localStorage.setItem('eppInit2',JSON.stringify(j))}catch(e){}pintarInicio();cachePer.clear();panelData=null;
+      mostrarToast(`Datos actualizados: ${j.personas.length} personas`)}catch(e){mostrarToast('No se pudo actualizar: '+e.message,'err')}
+  finally{_refrescando=false}
 }
 
 // ===================== NUEVA ENTREGA =====================
@@ -424,14 +435,14 @@ async function pdfConstancia(){
           ...(E.tipo==='CONTRATISTA'&&E.proveedor?[[{content:'Trabajador de empresa CONTRATISTA. EPP provisto por: '+E.proveedor.razon+' (CUIT '+E.proveedor.cuit+'), por cuenta del empleador indicado.',colSpan:6,styles:{fontStyle:'bold'}}]]:[]),
           [{content:'EPP necesarios según puesto (Matriz de EPP '+(j.revisionMatriz||'-')+'): '+(j.eppPuesto.join(', ')||'Sin matriz cargada')+(j.eppSegunNecesidad.length?'. Según necesidad: '+j.eppSegunNecesidad.join(', '):''),colSpan:6}]],
     columnStyles:{0:{fontStyle:'bold',cellWidth:38},2:{fontStyle:'bold',cellWidth:22},4:{fontStyle:'bold',cellWidth:20}}});
-  const rows=j.lineas.map((l,i)=>[i+1,l.tipo,l.modelo,l.marca,l.cert||'SI',l.cant,fmt(l.fecha),l.motivo+(l.obs?' — '+l.obs:''),'']);
-  doc.autoTable({startY:doc.lastAutoTable.finalY+3,head:[['N°','Producto','Tipo / Modelo','Marca','Posee certificación','Cant.','Fecha entrega','Motivo / Observaciones','Firma del trabajador']],
+  const rows=j.lineas.map((l,i)=>[i+1,l.tipo,l.modelo,l.marca,l.cert||'SI',l.cant,fmt(l.fecha),'']);
+  doc.autoTable({startY:doc.lastAutoTable.finalY+3,head:[['N°','Producto','Tipo / Modelo','Marca','Posee certificación','Cant.','Fecha entrega','Firma del trabajador']],
     body:rows,theme:'grid',rowPageBreak:'avoid',headStyles:{fillColor:[26,26,26],fontSize:7.5},styles:{fontSize:7.5,cellPadding:1.4,valign:'middle',minCellHeight:13},
-    columnStyles:{0:{cellWidth:8},1:{cellWidth:30},2:{cellWidth:70},3:{cellWidth:24},4:{cellWidth:20},5:{cellWidth:11},6:{cellWidth:20},8:{cellWidth:38}},
+    columnStyles:{0:{cellWidth:9},1:{cellWidth:38},2:{cellWidth:'auto'},3:{cellWidth:30},4:{cellWidth:22},5:{cellWidth:12},6:{cellWidth:22},7:{cellWidth:50}},
     margin:{top:21},
     didDrawPage:()=>head(),
     didDrawCell:d=>{
-      if(d.section!=='body'||d.column.index!==8)return;const l=j.lineas[(+d.row.raw[0])-1];if(!l)return;
+      if(d.section!=='body'||d.column.index!==7)return;const l=j.lineas[(+d.row.raw[0])-1];if(!l)return;
       if(l.origen==='APP'&&j.firmas[l.firma]){try{doc.addImage(j.firmas[l.firma],'PNG',d.cell.x+1,d.cell.y+0.8,d.cell.width-2,d.cell.height-1.6)}catch(e){}}
       else{doc.setFontSize(6);doc.setTextColor(110);doc.text('Firmado en Wiiprot\n'+l.id,d.cell.x+1.5,d.cell.y+5);doc.setTextColor(0)}
     }});
