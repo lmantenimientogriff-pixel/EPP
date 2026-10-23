@@ -387,7 +387,12 @@ async function registrar(){
 
 // ===================== PERSONA =====================
 async function abrirPersona(dni,replace){
-  let j;try{j=await getPersona(dni,replace)}catch(e){mostrarToast(e.message,'err');return}
+  const previo=cachePer.get(dni);
+  if(previo&&!replace){pintarPersona(dni,previo,'nav');getPersona(dni,true).then(j=>{if(perActual===dni&&q('v-persona').classList.contains('on'))pintarPersona(dni,j,'refresh')}).catch(()=>{});return}
+  let j;try{j=await getPersona(dni,true)}catch(e){mostrarToast(e.message,'err');return}
+  pintarPersona(dni,j,replace?'replace':'nav');
+}
+function pintarPersona(dni,j,modo){
   perActual=dni;perData=j;const p=j.persona;const emp=D.empresas[p.empresa];
   q('perFicha').innerHTML=`<h3>${esc(p.nombre)}</h3><div class="kv"><b>DNI</b><span>${p.dni}</span><b>Razón social</b><span>${emp?esc(emp.razon)+' · '+esc(emp.cuit)+(emp.tipo==='CONTRATISTA'?' <span class="pill b">CONTRATISTA</span><br><small>EPP provisto por '+esc(emp.proveedor?emp.proveedor.razon:'— sin definir —')+'</small>':''):'<span class="pill r">SIN ASIGNAR</span>'}</span>
     <b>Puesto</b><span>${esc(p.puesto)}</span><b>Depósito</b><span>${esc(depTxt(p.deposito))}</span><b>Área</b><span>${esc(p.depto)} / ${esc(p.area)}</span></div>`;
@@ -398,12 +403,13 @@ async function abrirPersona(dni,replace){
     (c.segunNecesidad.length?`<div class="ayuda" style="margin-top:8px">Según necesidad: ${esc(c.segunNecesidad.map(x=>x.tipo).join(', '))}</div>`:'');
   q('cDesde').value='';q('cHasta').value='';
   q('perHist').innerHTML=j.entregas.length?
-    '<div class="hlist">'+j.entregas.map(e=>`<div class="hli"><b>${esc(e.tipo)} ×${e.cant}</b> · ${fmt(e.fecha)} · ${esc(e.motivo)}<br>${esc(e.modelo)}<br><span class="x">${esc(depTxt(e.deposito))} · Entregó ${esc(e.entregador)} · ${e.origen==='APP'?'Firmado en app':'Wiiprot'}</span></div>`).join('')+'</div>'+
-    `<table class="hist"><tr><th>Fecha</th><th>Tipo</th><th>Modelo</th><th>Cant</th><th>Motivo</th><th>Depósito</th><th>Entregó</th><th>Origen</th></tr>`+
-    j.entregas.map(e=>`<tr><td>${fmt(e.fecha)}</td><td>${esc(e.tipo)}</td><td>${esc(e.modelo)}</td><td>${e.cant}</td><td>${esc(e.motivo)}</td><td>${esc(depTxt(e.deposito))}</td><td>${esc(e.entregador)}</td><td>${e.origen}</td></tr>`).join('')+'</table>'
+    '<div class="hlist">'+j.entregas.map(e=>`<div class="hli"><b>${esc(e.tipo)} ×${e.cant}</b> · ${fmt(e.fecha)} · ${esc(e.motivo)}<br><span class="x">${esc(depTxt(e.deposito))} · Entregó ${esc(e.entregador)}</span></div>`).join('')+'</div>'+
+    `<table class="hist"><tr><th>Fecha</th><th>Tipo</th><th>Cant</th><th>Motivo</th><th>Depósito</th><th>Entregó</th></tr>`+
+    j.entregas.map(e=>`<tr><td>${fmt(e.fecha)}</td><td>${esc(e.tipo)}</td><td>${e.cant}</td><td>${esc(e.motivo)}</td><td>${esc(depTxt(e.deposito))}</td><td>${esc(e.entregador)}</td></tr>`).join('')+'</table>'
     :'<div class="ayuda">Sin entregas.</div>';
-  if(replace)historia[historia.length-1]='v-persona';
-  goTo('v-persona',!replace);
+  if(modo==='refresh')return;
+  if(modo==='replace')historia[historia.length-1]='v-persona';
+  goTo('v-persona',modo!=='replace');
 }
 
 // ===================== CONSTANCIA PDF (Res. SRT 299/11) =====================
