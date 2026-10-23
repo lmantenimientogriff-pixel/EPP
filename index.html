@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrega de EPP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--R:#C00000;--N:#1a1a1a;--BG:#f4f5f7;--BO:#e0e2e8;--GT:#6b7280;--G:#1D9E75;--A:#EF9F27;--O:#E07B39;--B:#378ADD}
+*{box-sizing:border-box}
+body{margin:0;background:var(--BG);font-family:Calibri,"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;color:var(--N)}
+header{position:sticky;top:0;z-index:10;height:52px;background:var(--N);display:flex;align-items:center;gap:10px;padding:0 14px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.badge-emp{background:var(--R);color:#fff;font-size:11px;font-weight:700;letter-spacing:2px;padding:4px 8px;border-radius:2px}
+header h1{color:#fff;font-size:15px;font-weight:600;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.back{background:rgba(255,255,255,.12);border:0;color:#fff;font-size:20px;width:34px;height:34px;border-radius:4px;cursor:pointer;display:none}
+.ctx{color:#bbb;font-size:12px;text-align:right;line-height:1.2}
+main{max-width:520px;margin:0 auto;padding:14px}
+main.wide{max-width:1280px}
+.view{display:none}.view.on{display:block}
+.card{background:#fff;border:1px solid var(--BO);border-radius:8px;padding:14px;margin-bottom:12px}
+.card h3{margin:0 0 10px;font-size:15px}
+label{display:block;font-size:13px;color:var(--GT);margin:10px 0 4px}
+input,select,textarea{width:100%;font-size:16px;padding:11px;border:1px solid var(--BO);border-radius:6px;background:#fff;font-family:inherit}
+textarea{min-height:60px}
+.btn{display:block;width:100%;padding:15px;border:0;border-radius:6px;font-size:16px;font-weight:600;cursor:pointer;margin-top:10px;font-family:inherit}
+.btn.p{background:var(--R);color:#fff}.btn.s{background:#fff;color:var(--N);border:1px solid var(--BO)}.btn.d{background:var(--N);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.menu .btn{text-align:left;padding:18px}
+.menu .btn small{display:block;font-weight:400;color:var(--GT);font-size:13px;margin-top:3px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:4px 8px;font-size:14px}.kv b{color:var(--GT);font-weight:400}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:3px 8px;border-radius:10px;color:#fff}
+.pill.g{background:var(--G)}.pill.a{background:var(--A)}.pill.r{background:var(--R)}.pill.n{background:var(--GT)}.pill.b{background:var(--B)}
+.alert{border-left:4px solid var(--R);background:#fdeeee;padding:10px 12px;border-radius:4px;font-size:14px;margin:8px 0}
+.alert.w{border-color:var(--A);background:#fff6e8}
+.req{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--BO);font-size:14px}
+.req:last-child{border:0}
+.req .x{font-size:12px;color:var(--GT)}
+.item{border:1px solid var(--BO);border-radius:6px;padding:10px;margin-bottom:8px;position:relative}
+.item .del{position:absolute;top:6px;right:8px;background:none;border:0;color:var(--R);font-size:20px;cursor:pointer}
+.item .t{font-weight:700;font-size:14px;padding-right:24px}.item .m{font-size:13px;color:var(--GT)}
+.list-res{max-height:260px;overflow:auto;border:1px solid var(--BO);border-radius:6px;margin-top:4px;background:#fff}
+.list-res div{padding:10px;border-bottom:1px solid var(--BO);cursor:pointer;font-size:14px}
+.list-res div:hover{background:#f7f7f9}.list-res small{color:var(--GT)}
+#firma{width:100%;height:180px;border:2px dashed var(--GT);border-radius:6px;background:#fff;touch-action:none}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin:10px 0}.chk input{width:22px;height:22px;flex:0 0 22px}
+.ayuda{font-size:12px;color:var(--GT);margin-top:4px}
+input.edit{border:2px solid var(--B)}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.kpi{background:#fff;border:1px solid var(--BO);border-radius:8px;padding:12px}
+.kpi .v{font-size:26px;font-weight:700}.kpi .l{font-size:12px;color:var(--GT)}
+.bar-item{margin:8px 0;font-size:13px}.bar-track{height:10px;background:var(--BO);border-radius:5px;overflow:hidden;margin-top:3px}
+.bar-fill{height:100%;background:var(--G)}
+.tbl{display:none;width:100%;border-collapse:collapse;background:#fff;font-size:13px}
+.tbl th{background:var(--N);color:#fff;text-align:left;padding:8px;position:sticky;top:52px}
+.tbl td{padding:7px 8px;border-bottom:1px solid var(--BO);vertical-align:top}
+.tbl tr{cursor:pointer}.tbl tr:hover td{background:#fafafa}
+.cards .card{cursor:pointer}
+@media(min-width:900px){.kpis{grid-template-columns:repeat(5,1fr)}.tbl{display:table}.cards{display:none}}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 18px;border-radius:6px;color:#fff;font-size:15px;display:none;z-index:99;max-width:90%}
+#toast.ok{background:var(--G)}#toast.err{background:var(--R)}
+#spin{position:fixed;inset:0;background:rgba(255,255,255,.6);display:none;align-items:center;justify-content:center;z-index:98;font-size:15px;color:var(--GT)}
+.hist td,.hist th{font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <button class="back" id="btnBack" onclick="volver()">‹</button>
+  <span class="badge-emp">GRIFFOULIERE</span>
+  <h1 id="titulo">Entrega de EPP</h1>
+  <div class="ctx" id="ctx"></div>
+</header>
+<main id="main">
+
+<!-- ================= INICIO ================= -->
+<section class="view on" id="v-inicio">
+  <div class="card">
+    <h3>Puesto de entrega</h3>
+    <label>Depósito</label>
+    <select id="selDep" onchange="guardarCtx()"></select>
+    <label>Entregado por</label>
+    <select id="selUsr" onchange="guardarCtx()"></select>
+    <div class="ayuda">Se recuerdan en este dispositivo. El PIN se pide al registrar cada entrega.</div>
+  </div>
+  <div class="menu">
+    <button class="btn s" onclick="nuevaEntrega()">📦 Nueva entrega<small>Registrar EPP con firma del trabajador</small></button>
+    <button class="btn s" onclick="goTo('v-buscar')">👤 Consultar trabajador<small>Historial, estado según matriz y constancia SRT 299/11</small></button>
+    <button class="btn s" onclick="abrirPanel()">📊 Panel de control<small>Cumplimiento por razón social y depósito</small></button>
+  </div>
+</section>
+
+<!-- ================= BUSCAR ================= -->
+<section class="view" id="v-buscar">
+  <div class="card">
+    <label>Buscar por apellido o DNI</label>
+    <input id="qBus" oninput="buscar('qBus','resBus',abrirPersona)" autocomplete="off" placeholder="Ej: PEREZ o 30123456">
+    <div class="list-res" id="resBus"></div>
+  </div>
+</section>
+
+<!-- ================= NUEVA ENTREGA ================= -->
+<section class="view" id="v-entrega">
+  <div class="card" id="bxTrab">
+    <h3>1 · Trabajador</h3>
+    <input id="qEnt" oninput="buscar('qEnt','resEnt',elegirTrabajador)" autocomplete="off" placeholder="Apellido o DNI">
+    <div class="list-res" id="resEnt"></div>
+    <div id="fichaEnt"></div>
+  </div>
+
+  <div class="card" id="bxItems" style="display:none">
+    <h3>2 · Elementos a entregar</h3>
+    <div id="sugeridos"></div>
+    <div class="row">
+      <div><label>Tipo</label><select id="selTipo" onchange="cascada('manual')"></select></div>
+      <div><label>Marca</label><select id="selMarca" onchange="cascada('marca')"></select></div>
+    </div>
+    <label>Modelo / talle</label><select id="selModelo"></select>
+    <label>o por código</label><input id="inCod" inputmode="numeric" placeholder="Ej: 1213411026">
+    <div class="row">
+      <div><label>Cantidad</label><input id="inCant" type="number" min="1" value="1"></div>
+      <div><label>Motivo</label><select id="selMot"></select></div>
+    </div>
+    <label>Observaciones</label><input id="inObs" placeholder="Opcional">
+    <div id="prevInfo" class="ayuda"></div>
+    <button class="btn s" onclick="agregarItem()">+ Agregar a la entrega</button>
+    <div id="items" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="bxFirma" style="display:none">
+    <h3>3 · Conformidad del trabajador</h3>
+    <label>Fecha de entrega</label>
+    <input type="date" id="inFecha" class="edit">
+    <div class="ayuda">Precargada con hoy. Tocala sólo si la entrega se hizo otro día.</div>
+    <div class="chk"><input type="checkbox" id="chkCap"><span>El trabajador recibió información / capacitación sobre el uso correcto de los EPP entregados.</span></div>
+    <div class="chk"><input type="checkbox" id="chkDJ"><span id="txtDJ"></span></div>
+    <label>Firma del trabajador</label>
+    <canvas id="firma"></canvas>
+    <button class="btn s" onclick="limpiarFirma()" style="padding:10px">Borrar firma</button>
+    <label>PIN de quien entrega</label>
+    <input type="password" id="inPin" inputmode="numeric" maxlength="8">
+    <button class="btn p" id="btnReg" onclick="registrar()">Registrar entrega</button>
+  </div>
+</section>
+
+<!-- ================= PERSONA ================= -->
+<section class="view" id="v-persona">
+  <div class="card" id="perFicha"></div>
+  <div class="card"><h3>Estado según matriz del puesto</h3><div id="perEstado"></div></div>
+  <div class="card">
+    <h3>Constancia Res. SRT 299/11</h3>
+    <div class="row">
+      <div><label>Desde</label><input type="date" id="cDesde"></div>
+      <div><label>Hasta</label><input type="date" id="cHasta"></div>
+    </div>
+    <button class="btn d" onclick="pdfConstancia()">Descargar constancia PDF</button>
+    <button class="btn s" onclick="nuevaEntrega(perActual)">Nueva entrega a este trabajador</button>
+  </div>
+  <div class="card"><h3>Historial de entregas</h3><div id="perHist" style="overflow:auto"></div></div>
+</section>
+
+<!-- ================= PANEL ================= -->
+<section class="view" id="v-panel">
+  <div class="card">
+    <div class="row">
+      <div><label>Razón social</label><select id="fEmp" onchange="renderPanel()"></select></div>
+      <div><label>Depósito</label><select id="fDep" onchange="renderPanel()"></select></div>
+      <div><label>Estado</label><select id="fEst" onchange="renderPanel()">
+        <option value="">Todos</option><option value="SINEMP">Sin razón social</option><option value="SINMAT">Puesto sin matriz</option>
+        <option value="FALT">Con faltantes</option><option value="VENC">Con vencidos</option><option value="OK">En regla</option></select></div>
+    </div>
+    <label>Buscar</label><input id="fTxt" oninput="renderPanel()" placeholder="Apellido, DNI o puesto">
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="card" id="barras"></div>
+  <table class="tbl" id="tblPanel"></table>
+  <div class="cards" id="cardsPanel"></div>
+</section>
+</main>
+
+<div id="toast"></div>
+<div id="spin">Cargando…</div>
+
+<script>
+// ===================== CONFIG =====================
+const API = 'https://script.google.com/macros/s/AKfycbxqhIU0tsnXEl-ikswXoOSpxsN3Kb8NTog0A7T9BsSuB9_hphnLY7wgEIEWYDZRnOuySQ/exec';
+let D = null;                 // datos de init
+let historia = ['v-inicio'];
+let trab = null, trabData = null, items = [], perActual = null, perData = null, panelData = null;
+
+// ===================== INFRA =====================
+function q(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function mostrarToast(m,t='ok'){const e=q('toast');e.textContent=m;e.className=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',t==='err'?6000:3000)}
+function spin(on){q('spin').style.display=on?'flex':'none'}
+async function api(params){
+  spin(true);
+  try{const r=await fetch(API+'?'+new URLSearchParams(params));const j=await r.json();if(!j.ok)throw new Error(j.error);return j}
+  finally{spin(false)}
+}
+async function apiPost(body){
+  spin(true);
+  try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});const j=await r.json();if(!j.ok)throw new Error(j.error);return j}
+  finally{spin(false)}
+}
+const TIT={'v-inicio':'Entrega de EPP','v-buscar':'Consultar trabajador','v-entrega':'Nueva entrega','v-persona':'Ficha del trabajador','v-panel':'Panel de control EPP'};
+function goTo(v,push=true){
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id===v));
+  if(push&&historia[historia.length-1]!==v)historia.push(v);
+  q('titulo').textContent=TIT[v];q('btnBack').style.display=v==='v-inicio'?'none':'block';
+  q('main').classList.toggle('wide',v==='v-panel');window.scrollTo(0,0);
+}
+function volver(){historia.pop();goTo(historia[historia.length-1]||'v-inicio',false)}
+function hoyISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function fmt(f){return f?f.split('-').reverse().join('/'):''}
+function empTxt(id){const e=D.empresas[id];return e?e.razon:'—'}
+function depTxt(id){const d=D.depositos.find(x=>x.id===id);return d?d.nombre:(id||'—')}
+function pillEstado(e){return {'EN REGLA':'<span class="pill g">EN REGLA</span>','POR VENCER':'<span class="pill a">POR VENCER</span>','VENCIDO':'<span class="pill r">VENCIDO</span>','FALTANTE':'<span class="pill r">FALTANTE</span>','SIN CATÁLOGO':'<span class="pill n">SIN CATÁLOGO</span>'}[e]||e}
+
+// ===================== INICIO =====================
+async function cargar(){
+  try{D=await api({action:'init'})}catch(e){mostrarToast('No se pudo conectar: '+e.message,'err');return}
+  q('selDep').innerHTML=D.depositos.map(d=>`<option value="${d.id}">${esc(d.nombre)}</option>`).join('');
+  q('selUsr').innerHTML='<option value="">— Elegir —</option>'+D.entregadores.map(u=>`<option>${esc(u.nombre)}</option>`).join('');
+  q('selMot').innerHTML=D.motivos.map(m=>`<option>${m}</option>`).join('');
+  try{const c=JSON.parse(localStorage.getItem('eppCtx')||'{}');if(c.dep)q('selDep').value=c.dep;if(c.usr)q('selUsr').value=c.usr}catch(e){}
+  guardarCtx();
+}
+function guardarCtx(){
+  try{localStorage.setItem('eppCtx',JSON.stringify({dep:q('selDep').value,usr:q('selUsr').value}))}catch(e){}
+  q('ctx').innerHTML=D?esc(depTxt(q('selDep').value))+'<br>'+esc(q('selUsr').value||'sin entregador'):'';
+}
+
+// ===================== BUSCADOR =====================
+function buscar(inp,res,cb){
+  const t=q(inp).value.trim().toUpperCase();const box=q(res);
+  if(t.length<2){box.innerHTML='';return}
+  const r=D.personas.filter(p=>p.nombre.includes(t)||p.dni.includes(t)).slice(0,30);
+  box.innerHTML=r.map(p=>`<div data-dni="${p.dni}">${esc(p.nombre)}<br><small>DNI ${p.dni} · ${esc(p.puesto)} · ${p.empresa?esc(empTxt(p.empresa)):'<b style="color:var(--R)">SIN RAZÓN SOCIAL</b>'}</small></div>`).join('')||'<div><small>Sin resultados</small></div>';
+  box.querySelectorAll('[data-dni]').forEach(d=>d.onclick=()=>{box.innerHTML='';q(inp).value='';cb(d.dataset.dni)});
+}
+
+// ===================== NUEVA ENTREGA =====================
+function nuevaEntrega(dni){
+  if(!q('selUsr').value){mostrarToast('Elegí primero quién entrega','err');goTo('v-inicio');return}
+  trab=null;trabData=null;items=[];q('fichaEnt').innerHTML='';q('bxItems').style.display='none';q('bxFirma').style.display='none';
+  q('inFecha').value=hoyISO();q('chkCap').checked=false;q('chkDJ').checked=false;q('inPin').value='';
+  goTo('v-entrega');
+  if(dni)elegirTrabajador(dni);
+}
+async function elegirTrabajador(dni){
+  let j;try{j=await api({action:'persona',dni})}catch(e){mostrarToast(e.message,'err');return}
+  trab=j.persona;trabData=j;
+  const emp=D.empresas[trab.empresa];
+  let alerta='';
+  if(!emp)alerta=`<div class="alert">Este trabajador <b>no tiene razón social asignada</b>. RRHH debe cargar la columna razon_social en la pestaña PERSONAS. No se puede registrar la entrega.${trab.sugerida?'<br>Sugerida por área: '+esc(empTxt(trab.sugerida)):''}</div>`;
+  else if(!emp.cuitOk)alerta=`<div class="alert">La razón social ${esc(emp.razon)} no tiene un CUIT válido cargado. No se puede emitir la constancia.</div>`;
+  if(trab.deposito&&trab.deposito!==q('selDep').value)alerta+=`<div class="alert w">El trabajador pertenece a <b>${esc(depTxt(trab.deposito))}</b> y estás entregando desde <b>${esc(depTxt(q('selDep').value))}</b>. Verificá antes de continuar.</div>`;
+  q('fichaEnt').innerHTML=`<div class="kv" style="margin-top:10px"><b>Trabajador</b><span>${esc(trab.nombre)}</span><b>DNI</b><span>${trab.dni}</span>
+    <b>Razón social</b><span>${emp?esc(emp.razon)+' · CUIT '+esc(emp.cuit):'—'}${emp&&emp.tipo==='CONTRATISTA'?' <span class="pill b">CONTRATISTA</span><br><small>EPP provisto por '+esc(emp.proveedor?emp.proveedor.razon:'— sin definir —')+'</small>':''}</span><b>Puesto</b><span>${esc(trab.puesto||'Sin puesto')}</span>
+    <b>Depósito</b><span>${esc(depTxt(q('selDep').value))}</span></div>${alerta}`;
+  const habil=emp&&emp.cuitOk;
+  q('bxItems').style.display=habil?'block':'none';q('bxFirma').style.display=habil?'block':'none';
+  if(habil)setTimeout(initFirma,30);   // el lienzo se dimensiona recién cuando está visible
+  const quienEntrega=emp&&emp.tipo==='CONTRATISTA'&&emp.proveedor?`${emp.proveedor.razon}, por cuenta de mi empleador ${emp.razon},`:(emp?emp.razon:'');
+  q('txtDJ').textContent=`Declaro bajo juramento haber recibido de ${quienEntrega} los elementos detallados, en buen estado, y me comprometo a usarlos y conservarlos según las indicaciones recibidas.`;
+  renderSugeridos();cascada('init');renderItems();
+}
+function renderSugeridos(){
+  const c=trabData.cumplimiento;
+  if(c.sinMatriz){q('sugeridos').innerHTML='<div class="alert w">El puesto no tiene matriz de EPP. Se puede entregar igual; SSMA debe incorporarlo a la Matriz de EPP por puesto.</div>';return}
+  q('sugeridos').innerHTML=`<div class="ayuda" style="margin-bottom:6px">Obligatorio según Matriz de EPP ${esc(c.revision)} · puesto ${esc(c.puestoMatriz)} (tocá para precargar):</div>`+
+    c.items.map((i,k)=>`<div class="req" style="cursor:pointer" onclick="precargar('I',${k})"><span>${esc(i.tipo)}<br><span class="x">${i.estado==='SIN CATÁLOGO'?'No hay artículo cargado en el catálogo':i.ultima?'Última: '+fmt(i.ultima):'Nunca entregado'}${i.vence?' · vence '+fmt(i.vence):''}</span></span>${pillEstado(i.estado)}</div>`).join('')+
+    (c.segunNecesidad.length?`<details style="margin-top:8px"><summary class="ayuda">Según necesidad (${c.segunNecesidad.length})</summary>`+
+     c.segunNecesidad.map((i,k)=>`<div class="req" style="cursor:pointer" onclick="precargar('S',${k})"><span>${esc(i.tipo)}${i.nota?'<br><span class="x">'+esc(i.nota)+'</span>':''}</span><span class="pill n">SN</span></div>`).join('')+'</details>':'');
+}
+let filtroClave='';
+function precargar(lista,k){
+  const c=trabData.cumplimiento;const it=lista==='I'?c.items[k]:c.segunNecesidad[k];
+  if(!it.tipos||!it.tipos.length){mostrarToast('Ese elemento no tiene artículo en el catálogo','err');return}
+  filtroClave=it.clave||'';
+  q('selTipo').value=it.tipos.find(t=>D.catalogo.some(x=>x.tipo===t&&(!filtroClave||new RegExp(filtroClave,'i').test(x.modelo))))||it.tipos[0];
+  cascada('tipo');
+  q('selMot').value=it.estado==='FALTANTE'?'1era vez':it.estado==='VENCIDO'||it.estado==='POR VENCER'?'Vida útil':'Deterioro';
+  q('inCant').value=it.cant||1;
+  q('selMarca').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function cascada(n){
+  const cat=D.catalogo;const uniq=a=>[...new Set(a)].sort();
+  if(n==='init'){q('selTipo').innerHTML='<option value="">—</option>'+uniq(cat.map(c=>c.tipo)).map(t=>`<option>${esc(t)}</option>`).join('');n='tipo'}
+  if(n==='manual')filtroClave='';
+  const t=q('selTipo').value;const okClave=c=>!filtroClave||new RegExp(filtroClave,'i').test(c.modelo);
+  if(n==='tipo'||n==='manual')q('selMarca').innerHTML='<option value="">—</option>'+uniq(cat.filter(c=>c.tipo===t&&okClave(c)).map(c=>c.marca)).map(m=>`<option>${esc(m)}</option>`).join('');
+  const m=q('selMarca').value;
+  q('selModelo').innerHTML='<option value="">—</option>'+cat.filter(c=>c.tipo===t&&okClave(c)&&(!m||c.marca===m)).sort((a,b)=>a.modelo.localeCompare(b.modelo)).map(c=>`<option value="${c.codigo}">${esc(c.modelo)}</option>`).join('');
+  infoPrevio();
+}
+function infoPrevio(){
+  const t=q('selTipo').value;if(!trabData||!t){q('prevInfo').textContent='';return}
+  const p=trabData.entregas.find(e=>e.tipo===t);
+  q('prevInfo').textContent=p?`Entrega previa de ${t}: ${fmt(p.fecha)} — ${p.modelo} (${p.motivo})`:`Sin entrega previa de ${t}`;
+}
+function agregarItem(){
+  const cod=q('inCod').value.trim()||q('selModelo').value;
+  const c=D.catalogo.find(x=>x.codigo===cod);
+  if(!c){mostrarToast('Elegí un modelo o un código válido','err');return}
+  const cant=parseInt(q('inCant').value,10)||0;if(cant<1){mostrarToast('Cantidad inválida','err');return}
+  items.push({codigo:c.codigo,tipo:c.tipo,marca:c.marca,modelo:c.modelo,cantidad:cant,motivo:q('selMot').value,obs:q('inObs').value.trim()});
+  q('inCod').value='';q('inObs').value='';q('inCant').value=1;renderItems();mostrarToast('Agregado: '+c.tipo);
+}
+function quitarItem(i){items.splice(i,1);renderItems()}
+function renderItems(){
+  q('items').innerHTML=items.length?items.map((it,i)=>`<div class="item"><button class="del" onclick="quitarItem(${i})">×</button><div class="t">${esc(it.tipo)} ×${it.cantidad} · ${esc(it.motivo)}</div><div class="m">${esc(it.marca)} — ${esc(it.modelo)} · Cód. ${it.codigo}${it.obs?'<br>'+esc(it.obs):''}</div></div>`).join(''):'<div class="ayuda">Todavía no agregaste elementos.</div>';
+}
+
+// ---------- firma ----------
+let fctx=null,fDibujo=false,fTiene=false;
+function initFirma(){
+  const c=q('firma');const r=c.getBoundingClientRect();const k=window.devicePixelRatio||1;
+  c.width=r.width*k;c.height=r.height*k;fctx=c.getContext('2d');fctx.scale(k,k);
+  fctx.lineWidth=2.2;fctx.lineCap='round';fctx.lineJoin='round';fctx.strokeStyle='#111';fTiene=false;
+  const pos=e=>{const b=c.getBoundingClientRect();return[e.clientX-b.left,e.clientY-b.top]};
+  c.onpointerdown=e=>{fDibujo=true;c.setPointerCapture(e.pointerId);const[x,y]=pos(e);fctx.beginPath();fctx.moveTo(x,y)};
+  c.onpointermove=e=>{if(!fDibujo)return;const[x,y]=pos(e);fctx.lineTo(x,y);fctx.stroke();fTiene=true};
+  c.onpointerup=c.onpointercancel=()=>fDibujo=false;
+}
+function limpiarFirma(){initFirma()}
+function firmaPNG(){
+  // recorta y reduce para no pesar de más
+  const c=q('firma');const o=document.createElement('canvas');o.width=500;o.height=Math.round(500*c.height/c.width);
+  const x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,o.width,o.height);x.drawImage(c,0,0,o.width,o.height);
+  return o.toDataURL('image/png');
+}
+async function registrar(){
+  if(!items.length)return mostrarToast('Agregá al menos un EPP','err');
+  if(!q('chkDJ').checked)return mostrarToast('El trabajador debe aceptar la declaración jurada','err');
+  if(!fTiene)return mostrarToast('Falta la firma del trabajador','err');
+  if(!q('inPin').value)return mostrarToast('Ingresá el PIN de quien entrega','err');
+  q('btnReg').disabled=true;
+  try{
+    const r=await apiPost({action:'registrar',dni:trab.dni,deposito:q('selDep').value,entregador:q('selUsr').value,pin:q('inPin').value,
+      fecha:q('inFecha').value,capacitado:q('chkCap').checked,declaracion:true,items,firma:firmaPNG()});
+    mostrarToast(`Entrega ${r.lote} registrada (${r.lineas} ítems) — ${r.empresa}`);
+    const dni=trab.dni;nuevaEntrega();abrirPersona(dni,true);
+  }catch(e){mostrarToast(e.message,'err')}
+  finally{q('btnReg').disabled=false}
+}
+
+// ===================== PERSONA =====================
+async function abrirPersona(dni,replace){
+  let j;try{j=await api({action:'persona',dni})}catch(e){mostrarToast(e.message,'err');return}
+  perActual=dni;perData=j;const p=j.persona;const emp=D.empresas[p.empresa];
+  q('perFicha').innerHTML=`<h3>${esc(p.nombre)}</h3><div class="kv"><b>DNI</b><span>${p.dni}</span><b>Razón social</b><span>${emp?esc(emp.razon)+' · '+esc(emp.cuit)+(emp.tipo==='CONTRATISTA'?' <span class="pill b">CONTRATISTA</span><br><small>EPP provisto por '+esc(emp.proveedor?emp.proveedor.razon:'— sin definir —')+'</small>':''):'<span class="pill r">SIN ASIGNAR</span>'}</span>
+    <b>Puesto</b><span>${esc(p.puesto)}</span><b>Depósito</b><span>${esc(depTxt(p.deposito))}</span><b>Área</b><span>${esc(p.depto)} / ${esc(p.area)}</span></div>`;
+  const c=j.cumplimiento;
+  q('perEstado').innerHTML=c.sinMatriz?'<div class="alert w">Puesto sin matriz de EPP: SSMA debe incorporarlo a la Matriz de EPP por puesto.</div>':
+    `<div class="ayuda">Matriz ${esc(c.revision)} · puesto ${esc(c.puestoMatriz)}</div><div class="bar-item">Cumplimiento ${c.pct}% (${c.enRegla}/${c.requeridos} obligatorios)<div class="bar-track"><div class="bar-fill" style="width:${c.pct}%;background:${c.pct>=90?'var(--G)':c.pct>=60?'var(--A)':'var(--R)'}"></div></div></div>`+
+    c.items.map(i=>`<div class="req"><span>${esc(i.tipo)}<br><span class="x">${i.estado==='SIN CATÁLOGO'?'Sin artículo en catálogo':i.ultima?'Última '+fmt(i.ultima):'Nunca entregado'}${i.vence?' · vence '+fmt(i.vence):''}</span></span>${pillEstado(i.estado)}</div>`).join('')+
+    (c.segunNecesidad.length?`<div class="ayuda" style="margin-top:8px">Según necesidad: ${esc(c.segunNecesidad.map(x=>x.tipo).join(', '))}</div>`:'');
+  q('cDesde').value='';q('cHasta').value='';
+  q('perHist').innerHTML=j.entregas.length?`<table class="tbl hist" style="display:table"><tr><th>Fecha</th><th>Tipo</th><th>Modelo</th><th>Cant</th><th>Motivo</th><th>Depósito</th><th>Entregó</th><th>Origen</th></tr>`+
+    j.entregas.map(e=>`<tr><td>${fmt(e.fecha)}</td><td>${esc(e.tipo)}</td><td>${esc(e.modelo)}</td><td>${e.cant}</td><td>${esc(e.motivo)}</td><td>${esc(depTxt(e.deposito))}</td><td>${esc(e.entregador)}</td><td>${e.origen}</td></tr>`).join('')+'</table>':'<div class="ayuda">Sin entregas.</div>';
+  if(replace)historia[historia.length-1]='v-persona';
+  goTo('v-persona',!replace);
+}
+
+// ===================== CONSTANCIA PDF (Res. SRT 299/11) =====================
+async function pdfConstancia(){
+  let j;try{j=await api({action:'constancia',dni:perActual,desde:q('cDesde').value,hasta:q('cHasta').value})}catch(e){mostrarToast(e.message,'err');return}
+  if(!j.lineas.length)return mostrarToast('No hay entregas para esa razón social en el período','err');
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=doc.internal.pageSize.getWidth();const E=j.empresa,P=j.persona;
+  const head=()=>{
+    doc.setFillColor(26,26,26);doc.rect(0,0,W,16,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(12);
+    doc.text('CONSTANCIA DE ENTREGA DE ROPA DE TRABAJO Y ELEMENTOS DE PROTECCIÓN PERSONAL',10,7);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('Resolución SRT N° 299/2011 — Anexo I',10,12);
+    doc.text('Emitida: '+new Date().toLocaleString('es-AR'),W-10,12,{align:'right'});doc.setTextColor(0);
+  };
+  head();
+  doc.autoTable({startY:20,theme:'grid',styles:{fontSize:8,cellPadding:1.5},
+    body:[['Razón social',E.razon,'CUIT',E.cuit,'C.P.',E.cp],['Dirección',E.domicilio,'Localidad',E.localidad,'Provincia',E.provincia],
+          ['Trabajador',P.nombre,'DNI',P.dni,'Depósito',depTxt(P.deposito)],['Descripción del puesto',P.puesto,'Período',(q('cDesde').value?fmt(q('cDesde').value):'Inicio')+' a '+(q('cHasta').value?fmt(q('cHasta').value):'hoy'),'',''],
+          ...(E.tipo==='CONTRATISTA'&&E.proveedor?[[{content:'Trabajador de empresa CONTRATISTA. EPP provisto por: '+E.proveedor.razon+' (CUIT '+E.proveedor.cuit+'), por cuenta del empleador indicado.',colSpan:6,styles:{fontStyle:'bold'}}]]:[]),
+          [{content:'EPP necesarios según puesto (Matriz de EPP '+(j.revisionMatriz||'-')+'): '+(j.eppPuesto.join(', ')||'Sin matriz cargada')+(j.eppSegunNecesidad.length?'. Según necesidad: '+j.eppSegunNecesidad.join(', '):''),colSpan:6}]],
+    columnStyles:{0:{fontStyle:'bold',cellWidth:38},2:{fontStyle:'bold',cellWidth:22},4:{fontStyle:'bold',cellWidth:20}}});
+  const rows=j.lineas.map((l,i)=>[i+1,l.tipo,l.modelo,l.marca,l.cert||'SI',l.cant,fmt(l.fecha),l.motivo+(l.obs?' — '+l.obs:''),'']);
+  doc.autoTable({startY:doc.lastAutoTable.finalY+3,head:[['N°','Producto','Tipo / Modelo','Marca','Posee certificación','Cant.','Fecha entrega','Motivo / Observaciones','Firma del trabajador']],
+    body:rows,theme:'grid',headStyles:{fillColor:[26,26,26],fontSize:7.5},styles:{fontSize:7.5,cellPadding:1.4,valign:'middle',minCellHeight:13},
+    columnStyles:{0:{cellWidth:8},1:{cellWidth:30},2:{cellWidth:70},3:{cellWidth:24},4:{cellWidth:20},5:{cellWidth:11},6:{cellWidth:20},8:{cellWidth:38}},
+    margin:{top:20},
+    didDrawPage:()=>head(),
+    didDrawCell:d=>{
+      if(d.section!=='body'||d.column.index!==8)return;const l=j.lineas[(+d.row.raw[0])-1];if(!l)return;
+      if(l.origen==='APP'&&j.firmas[l.firma]){try{doc.addImage(j.firmas[l.firma],'PNG',d.cell.x+1,d.cell.y+0.8,d.cell.width-2,d.cell.height-1.6)}catch(e){}}
+      else{doc.setFontSize(6);doc.setTextColor(110);doc.text('Firmado en Wiiprot\n'+l.id,d.cell.x+1.5,d.cell.y+5);doc.setTextColor(0)}
+    }});
+  const n=doc.internal.getNumberOfPages();
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(110);
+    doc.text(E.razon+' · CUIT '+E.cuit+' · Registro con firma digitalizada y huella SHA-256 por línea',10,205);doc.text('Página '+i+' de '+n,W-10,205,{align:'right'});}
+  doc.save(`Constancia_EPP_${E.id}_${P.dni}_${hoyISO()}.pdf`);
+}
+
+// ===================== PANEL =====================
+async function abrirPanel(){
+  try{panelData=await api({action:'dashboard'})}catch(e){mostrarToast(e.message,'err');return}
+  q('fEmp').innerHTML='<option value="">Todas</option>'+Object.values(D.empresas).map(e=>`<option value="${e.id}">${esc(e.razon)}</option>`).join('')+'<option value="-">Sin asignar</option>';
+  q('fDep').innerHTML='<option value="">Todos</option>'+D.depositos.map(d=>`<option value="${d.id}">${esc(d.nombre)}</option>`).join('');
+  goTo('v-panel');renderPanel();
+}
+function renderPanel(){
+  const fe=q('fEmp').value,fd=q('fDep').value,fs=q('fEst').value,ft=q('fTxt').value.trim().toUpperCase();
+  let L=panelData.personas.filter(p=>(!fe||(fe==='-'?!p.empresa:p.empresa===fe))&&(!fd||p.deposito===fd)&&(!ft||p.nombre.includes(ft)||p.dni.includes(ft)||p.puesto.toUpperCase().includes(ft)));
+  const k={tot:L.length,sinEmp:L.filter(p=>!p.empresa).length,sinMat:L.filter(p=>p.sinMatriz).length,falt:L.filter(p=>p.faltantes.length).length,venc:L.filter(p=>p.vencidos.length).length};
+  const conMat=L.filter(p=>!p.sinMatriz);const prom=conMat.length?Math.round(conMat.reduce((s,p)=>s+p.pct,0)/conMat.length):0;
+  q('kpis').innerHTML=[[k.tot,'Personal habilitado'],[k.sinEmp,'Sin razón social',k.sinEmp?'var(--R)':''],[prom+'%','Cumplimiento promedio'],[k.falt,'Con faltantes',k.falt?'var(--R)':''],[k.venc,'Con EPP vencido',k.venc?'var(--A)':'']]
+    .map(x=>`<div class="kpi"><div class="v" style="color:${x[2]||'inherit'}">${x[0]}</div><div class="l">${x[1]}</div></div>`).join('');
+  const grupos={};conMat.forEach(p=>{const g=(p.empresa?empTxt(p.empresa):'Sin asignar')+' · '+depTxt(p.deposito);(grupos[g]=grupos[g]||[]).push(p.pct)});
+  q('barras').innerHTML='<h3>Cumplimiento por razón social y depósito</h3>'+(Object.keys(grupos).sort().map(g=>{const v=Math.round(grupos[g].reduce((a,b)=>a+b,0)/grupos[g].length);
+    return `<div class="bar-item">${esc(g)} — ${v}% (${grupos[g].length} pers.)<div class="bar-track"><div class="bar-fill" style="width:${v}%;background:${v>=90?'var(--G)':v>=60?'var(--A)':'var(--R)'}"></div></div></div>`}).join('')||'<div class="ayuda">Sin datos con matriz.</div>')+
+    `<div class="ayuda">${k.sinMat} personas tienen un puesto sin matriz cargada y no entran en el promedio.</div>`;
+  if(fs)L=L.filter(p=>fs==='SINEMP'?!p.empresa:fs==='SINMAT'?p.sinMatriz:fs==='FALT'?p.faltantes.length:fs==='VENC'?p.vencidos.length:(!p.sinMatriz&&!p.faltantes.length&&!p.vencidos.length));
+  L.sort((a,b)=>(a.pct==null?101:a.pct)-(b.pct==null?101:b.pct));
+  const est=p=>p.sinMatriz?'<span class="pill n">SIN MATRIZ</span>':`<span class="pill ${p.pct>=90?'g':p.pct>=60?'a':'r'}">${p.pct}%</span>`;
+  q('tblPanel').innerHTML='<tr><th>Trabajador</th><th>DNI</th><th>Razón social</th><th>Depósito</th><th>Puesto</th><th>Estado</th><th>Faltantes</th><th>Vencidos</th><th>Por vencer</th></tr>'+
+    L.slice(0,400).map(p=>`<tr onclick="abrirPersona('${p.dni}')"><td>${esc(p.nombre)}</td><td>${p.dni}</td><td>${p.empresa?esc(empTxt(p.empresa)):'<span class="pill r">SIN ASIGNAR</span>'}</td><td>${esc(depTxt(p.deposito))}</td><td>${esc(p.puesto)}</td><td>${est(p)}</td><td>${esc(p.faltantes.join(', '))}</td><td>${esc(p.vencidos.join(', '))}</td><td>${esc(p.porVencer.join(', '))}</td></tr>`).join('');
+  q('cardsPanel').innerHTML=L.slice(0,200).map(p=>`<div class="card" onclick="abrirPersona('${p.dni}')"><div style="display:flex;justify-content:space-between"><b>${esc(p.nombre)}</b>${est(p)}</div>
+    <div class="ayuda">${p.dni} · ${p.empresa?esc(empTxt(p.empresa)):'SIN RAZÓN SOCIAL'} · ${esc(depTxt(p.deposito))}<br>${esc(p.puesto)}</div>
+    ${p.faltantes.length?'<div class="ayuda" style="color:var(--R)">Faltan: '+esc(p.faltantes.join(', '))+'</div>':''}${p.vencidos.length?'<div class="ayuda" style="color:var(--O)">Vencidos: '+esc(p.vencidos.join(', '))+'</div>':''}</div>`).join('');
+}
+
+q('selTipo').addEventListener('change',infoPrevio);
+cargar();
+</script>
+</body>
+</html>
