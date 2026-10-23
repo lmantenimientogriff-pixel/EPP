@@ -61,7 +61,13 @@ input.edit{border:2px solid var(--B)}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 18px;border-radius:6px;color:#fff;font-size:15px;display:none;z-index:99;max-width:90%}
 #toast.ok{background:var(--G)}#toast.err{background:var(--R)}
 #spin{position:fixed;inset:0;background:rgba(255,255,255,.6);display:none;align-items:center;justify-content:center;z-index:98;font-size:15px;color:var(--GT)}
-.hist td,.hist th{font-size:12px}
+.pin{-webkit-text-security:disc;text-security:disc;letter-spacing:4px}
+.hist{display:none;width:100%;border-collapse:collapse;font-size:12px}
+.hist th{background:var(--N);color:#fff;text-align:left;padding:6px 8px;position:static}
+.hist td{padding:6px 8px;border-bottom:1px solid var(--BO);vertical-align:top}
+.hli{border-bottom:1px solid var(--BO);padding:8px 0;font-size:13px}.hli:last-child{border:0}
+.hli b{font-size:14px}.hli .x{color:var(--GT);font-size:12px}
+@media(min-width:900px){.hist{display:table}.hlist{display:none}}
 </style>
 </head>
 <body>
@@ -138,7 +144,7 @@ input.edit{border:2px solid var(--B)}
     <canvas id="firma"></canvas>
     <button class="btn s" onclick="limpiarFirma()" style="padding:10px">Borrar firma</button>
     <label>PIN de quien entrega</label>
-    <input type="password" id="inPin" inputmode="numeric" maxlength="8">
+    <input type="text" id="inPin" class="pin" inputmode="numeric" maxlength="8" autocomplete="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="pin-entrega-x">
     <button class="btn p" id="btnReg" onclick="registrar()">Registrar entrega</button>
   </div>
 </section>
@@ -156,7 +162,7 @@ input.edit{border:2px solid var(--B)}
     <button class="btn d" onclick="pdfConstancia()">Descargar constancia PDF</button>
     <button class="btn s" onclick="nuevaEntrega(perActual)">Nueva entrega a este trabajador</button>
   </div>
-  <div class="card"><h3>Historial de entregas</h3><div id="perHist" style="overflow:auto"></div></div>
+  <div class="card"><h3>Historial de entregas</h3><div id="perHist"></div></div>
 </section>
 
 <!-- ================= PANEL ================= -->
@@ -192,11 +198,12 @@ let trab = null, trabData = null, items = [], perActual = null, perData = null, 
 function q(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function mostrarToast(m,t='ok'){const e=q('toast');e.textContent=m;e.className=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',t==='err'?6000:3000)}
-function spin(on){q('spin').style.display=on?'flex':'none'}
-async function api(params){
-  spin(true);
+let _spinN=0,_spinT=null;
+function spin(on){_spinN+=on?1:-1;clearTimeout(_spinT);if(_spinN>0)_spinT=setTimeout(()=>q('spin').style.display='flex',350);else q('spin').style.display='none'}
+async function api(params,silencioso){
+  if(!silencioso)spin(true);
   try{const r=await fetch(API+'?'+new URLSearchParams(params));const j=await r.json();if(!j.ok)throw new Error(j.error);return j}
-  finally{spin(false)}
+  finally{if(!silencioso)spin(false)}
 }
 async function apiPost(body){
   spin(true);
@@ -219,12 +226,25 @@ function pillEstado(e){return {'EN REGLA':'<span class="pill g">EN REGLA</span>'
 
 // ===================== INICIO =====================
 async function cargar(){
-  try{D=await api({action:'init'})}catch(e){mostrarToast('No se pudo conectar: '+e.message,'err');return}
+  let local=null;try{local=JSON.parse(localStorage.getItem('eppInit')||'null')}catch(e){}
+  if(local){D=local;pintarInicio()}                       // abre al instante con lo último conocido
+  try{const j=await api({action:'init'},!!local);D=j;try{localStorage.setItem('eppInit',JSON.stringify(j))}catch(e){}pintarInicio()}
+  catch(e){if(!local){mostrarToast('No se pudo conectar: '+e.message,'err');return}}
+  api({action:'dashboard'},true).then(j=>panelData=j).catch(()=>{});   // precarga del panel
+}
+function pintarInicio(){
+  const dep=q('selDep').value,usr=q('selUsr').value;
   q('selDep').innerHTML=D.depositos.map(d=>`<option value="${d.id}">${esc(d.nombre)}</option>`).join('');
   q('selUsr').innerHTML='<option value="">— Elegir —</option>'+D.entregadores.map(u=>`<option>${esc(u.nombre)}</option>`).join('');
   q('selMot').innerHTML=D.motivos.map(m=>`<option>${m}</option>`).join('');
-  try{const c=JSON.parse(localStorage.getItem('eppCtx')||'{}');if(c.dep)q('selDep').value=c.dep;if(c.usr)q('selUsr').value=c.usr}catch(e){}
+  try{const c=JSON.parse(localStorage.getItem('eppCtx')||'{}');q('selDep').value=dep||c.dep||q('selDep').value;q('selUsr').value=usr||c.usr||''}catch(e){}
   guardarCtx();
+}
+// Caché de fichas consultadas en esta sesión (se invalida al registrar)
+const cachePer=new Map();
+async function getPersona(dni,forzar){
+  if(!forzar&&cachePer.has(dni))return cachePer.get(dni);
+  const j=await api({action:'persona',dni});cachePer.set(dni,j);return j;
 }
 function guardarCtx(){
   try{localStorage.setItem('eppCtx',JSON.stringify({dep:q('selDep').value,usr:q('selUsr').value}))}catch(e){}
@@ -249,7 +269,7 @@ function nuevaEntrega(dni){
   if(dni)elegirTrabajador(dni);
 }
 async function elegirTrabajador(dni){
-  let j;try{j=await api({action:'persona',dni})}catch(e){mostrarToast(e.message,'err');return}
+  let j;try{j=await getPersona(dni)}catch(e){mostrarToast(e.message,'err');return}
   trab=j.persona;trabData=j;
   const emp=D.empresas[trab.empresa];
   let alerta='';
@@ -341,14 +361,15 @@ async function registrar(){
     const r=await apiPost({action:'registrar',dni:trab.dni,deposito:q('selDep').value,entregador:q('selUsr').value,pin:q('inPin').value,
       fecha:q('inFecha').value,capacitado:q('chkCap').checked,declaracion:true,items,firma:firmaPNG()});
     mostrarToast(`Entrega ${r.lote} registrada (${r.lineas} ítems) — ${r.empresa}`);
-    const dni=trab.dni;nuevaEntrega();abrirPersona(dni,true);
+    const dni=trab.dni;cachePer.delete(dni);panelData=null;nuevaEntrega();abrirPersona(dni,true);
+    api({action:'dashboard'},true).then(j=>panelData=j).catch(()=>{});
   }catch(e){mostrarToast(e.message,'err')}
   finally{q('btnReg').disabled=false}
 }
 
 // ===================== PERSONA =====================
 async function abrirPersona(dni,replace){
-  let j;try{j=await api({action:'persona',dni})}catch(e){mostrarToast(e.message,'err');return}
+  let j;try{j=await getPersona(dni,replace)}catch(e){mostrarToast(e.message,'err');return}
   perActual=dni;perData=j;const p=j.persona;const emp=D.empresas[p.empresa];
   q('perFicha').innerHTML=`<h3>${esc(p.nombre)}</h3><div class="kv"><b>DNI</b><span>${p.dni}</span><b>Razón social</b><span>${emp?esc(emp.razon)+' · '+esc(emp.cuit)+(emp.tipo==='CONTRATISTA'?' <span class="pill b">CONTRATISTA</span><br><small>EPP provisto por '+esc(emp.proveedor?emp.proveedor.razon:'— sin definir —')+'</small>':''):'<span class="pill r">SIN ASIGNAR</span>'}</span>
     <b>Puesto</b><span>${esc(p.puesto)}</span><b>Depósito</b><span>${esc(depTxt(p.deposito))}</span><b>Área</b><span>${esc(p.depto)} / ${esc(p.area)}</span></div>`;
@@ -358,26 +379,46 @@ async function abrirPersona(dni,replace){
     c.items.map(i=>`<div class="req"><span>${esc(i.tipo)}<br><span class="x">${i.estado==='SIN CATÁLOGO'?'Sin artículo en catálogo':i.ultima?'Última '+fmt(i.ultima):'Nunca entregado'}${i.vence?' · vence '+fmt(i.vence):''}</span></span>${pillEstado(i.estado)}</div>`).join('')+
     (c.segunNecesidad.length?`<div class="ayuda" style="margin-top:8px">Según necesidad: ${esc(c.segunNecesidad.map(x=>x.tipo).join(', '))}</div>`:'');
   q('cDesde').value='';q('cHasta').value='';
-  q('perHist').innerHTML=j.entregas.length?`<table class="tbl hist" style="display:table"><tr><th>Fecha</th><th>Tipo</th><th>Modelo</th><th>Cant</th><th>Motivo</th><th>Depósito</th><th>Entregó</th><th>Origen</th></tr>`+
-    j.entregas.map(e=>`<tr><td>${fmt(e.fecha)}</td><td>${esc(e.tipo)}</td><td>${esc(e.modelo)}</td><td>${e.cant}</td><td>${esc(e.motivo)}</td><td>${esc(depTxt(e.deposito))}</td><td>${esc(e.entregador)}</td><td>${e.origen}</td></tr>`).join('')+'</table>':'<div class="ayuda">Sin entregas.</div>';
+  q('perHist').innerHTML=j.entregas.length?
+    '<div class="hlist">'+j.entregas.map(e=>`<div class="hli"><b>${esc(e.tipo)} ×${e.cant}</b> · ${fmt(e.fecha)} · ${esc(e.motivo)}<br>${esc(e.modelo)}<br><span class="x">${esc(depTxt(e.deposito))} · Entregó ${esc(e.entregador)} · ${e.origen==='APP'?'Firmado en app':'Wiiprot'}</span></div>`).join('')+'</div>'+
+    `<table class="hist"><tr><th>Fecha</th><th>Tipo</th><th>Modelo</th><th>Cant</th><th>Motivo</th><th>Depósito</th><th>Entregó</th><th>Origen</th></tr>`+
+    j.entregas.map(e=>`<tr><td>${fmt(e.fecha)}</td><td>${esc(e.tipo)}</td><td>${esc(e.modelo)}</td><td>${e.cant}</td><td>${esc(e.motivo)}</td><td>${esc(depTxt(e.deposito))}</td><td>${esc(e.entregador)}</td><td>${e.origen}</td></tr>`).join('')+'</table>'
+    :'<div class="ayuda">Sin entregas.</div>';
   if(replace)historia[historia.length-1]='v-persona';
   goTo('v-persona',!replace);
 }
 
 // ===================== CONSTANCIA PDF (Res. SRT 299/11) =====================
+let _logo;
+async function logoPDF(){   // logo.png en la misma carpeta del repositorio (opcional)
+  if(_logo!==undefined)return _logo;
+  try{
+    const img=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src='logo.png?v=1'});
+    const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+    const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0);
+    _logo={data:c.toDataURL('image/png'),r:img.naturalWidth/img.naturalHeight};
+  }catch(e){_logo=null}
+  return _logo;
+}
 async function pdfConstancia(){
   let j;try{j=await api({action:'constancia',dni:perActual,desde:q('cDesde').value,hasta:q('cHasta').value})}catch(e){mostrarToast(e.message,'err');return}
   if(!j.lineas.length)return mostrarToast('No hay entregas para esa razón social en el período','err');
   const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth();const E=j.empresa,P=j.persona;
+  const logo=await logoPDF();
+  const emitida=new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
   const head=()=>{
-    doc.setFillColor(26,26,26);doc.rect(0,0,W,16,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(12);
-    doc.text('CONSTANCIA DE ENTREGA DE ROPA DE TRABAJO Y ELEMENTOS DE PROTECCIÓN PERSONAL',10,7);
-    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('Resolución SRT N° 299/2011 — Anexo I',10,12);
-    doc.text('Emitida: '+new Date().toLocaleString('es-AR'),W-10,12,{align:'right'});doc.setTextColor(0);
+    let x=10;
+    if(logo){const h=13,w=h*logo.r;doc.addImage(logo.data,'PNG',10,3,w,h);x=10+w+5}
+    doc.setTextColor(26);doc.setFont('helvetica','bold');doc.setFontSize(12);
+    doc.text('CONSTANCIA DE ENTREGA DE ROPA DE TRABAJO Y ELEMENTOS DE PROTECCIÓN PERSONAL',x,8.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(90);
+    doc.text('Resolución SRT N° 299/2011 — Anexo I',x,13.5);
+    doc.text('Emitida: '+emitida,W-10,13.5,{align:'right'});
+    doc.setDrawColor(192,0,0);doc.setLineWidth(0.8);doc.line(10,17.5,W-10,17.5);doc.setTextColor(0);doc.setLineWidth(0.1);doc.setDrawColor(0);
   };
   head();
-  doc.autoTable({startY:20,theme:'grid',styles:{fontSize:8,cellPadding:1.5},
+  doc.autoTable({startY:21,theme:'grid',styles:{fontSize:8,cellPadding:1.5},
     body:[['Razón social',E.razon,'CUIT',E.cuit,'C.P.',E.cp],['Dirección',E.domicilio,'Localidad',E.localidad,'Provincia',E.provincia],
           ['Trabajador',P.nombre,'DNI',P.dni,'Depósito',depTxt(P.deposito)],['Descripción del puesto',P.puesto,'Período',(q('cDesde').value?fmt(q('cDesde').value):'Inicio')+' a '+(q('cHasta').value?fmt(q('cHasta').value):'hoy'),'',''],
           ...(E.tipo==='CONTRATISTA'&&E.proveedor?[[{content:'Trabajador de empresa CONTRATISTA. EPP provisto por: '+E.proveedor.razon+' (CUIT '+E.proveedor.cuit+'), por cuenta del empleador indicado.',colSpan:6,styles:{fontStyle:'bold'}}]]:[]),
@@ -385,9 +426,9 @@ async function pdfConstancia(){
     columnStyles:{0:{fontStyle:'bold',cellWidth:38},2:{fontStyle:'bold',cellWidth:22},4:{fontStyle:'bold',cellWidth:20}}});
   const rows=j.lineas.map((l,i)=>[i+1,l.tipo,l.modelo,l.marca,l.cert||'SI',l.cant,fmt(l.fecha),l.motivo+(l.obs?' — '+l.obs:''),'']);
   doc.autoTable({startY:doc.lastAutoTable.finalY+3,head:[['N°','Producto','Tipo / Modelo','Marca','Posee certificación','Cant.','Fecha entrega','Motivo / Observaciones','Firma del trabajador']],
-    body:rows,theme:'grid',headStyles:{fillColor:[26,26,26],fontSize:7.5},styles:{fontSize:7.5,cellPadding:1.4,valign:'middle',minCellHeight:13},
+    body:rows,theme:'grid',rowPageBreak:'avoid',headStyles:{fillColor:[26,26,26],fontSize:7.5},styles:{fontSize:7.5,cellPadding:1.4,valign:'middle',minCellHeight:13},
     columnStyles:{0:{cellWidth:8},1:{cellWidth:30},2:{cellWidth:70},3:{cellWidth:24},4:{cellWidth:20},5:{cellWidth:11},6:{cellWidth:20},8:{cellWidth:38}},
-    margin:{top:20},
+    margin:{top:21},
     didDrawPage:()=>head(),
     didDrawCell:d=>{
       if(d.section!=='body'||d.column.index!==8)return;const l=j.lineas[(+d.row.raw[0])-1];if(!l)return;
@@ -402,7 +443,7 @@ async function pdfConstancia(){
 
 // ===================== PANEL =====================
 async function abrirPanel(){
-  try{panelData=await api({action:'dashboard'})}catch(e){mostrarToast(e.message,'err');return}
+  if(!panelData){try{panelData=await api({action:'dashboard'})}catch(e){mostrarToast(e.message,'err');return}}
   q('fEmp').innerHTML='<option value="">Todas</option>'+Object.values(D.empresas).map(e=>`<option value="${e.id}">${esc(e.razon)}</option>`).join('')+'<option value="-">Sin asignar</option>';
   q('fDep').innerHTML='<option value="">Todos</option>'+D.depositos.map(d=>`<option value="${d.id}">${esc(d.nombre)}</option>`).join('');
   goTo('v-panel');renderPanel();
