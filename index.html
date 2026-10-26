@@ -302,7 +302,7 @@ function goTo(v,push=true){
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id===v));
   if(push&&historia[historia.length-1]!==v)historia.push(v);
   q('titulo').textContent=TIT[v];q('btnBack').style.display=(v==='v-inicio'||v==='v-login')?'none':'block';
-  q('main').classList.toggle('wide',v==='v-panel');window.scrollTo(0,0);
+  q('main').classList.toggle('wide',v==='v-panel'||v==='v-log');window.scrollTo(0,0);
 }
 function volver(){historia.pop();goTo(historia[historia.length-1]||'v-inicio',false)}
 function hoyISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
