@@ -89,24 +89,45 @@ input.edit{border:2px solid var(--B)}
 </header>
 <main id="main">
 
-<!-- ================= INICIO ================= -->
-<section class="view on" id="v-inicio">
+<!-- ================= INGRESO ================= -->
+<section class="view on" id="v-login">
   <div class="card">
-    <h3>Puesto de entrega</h3>
+    <h3>Ingreso</h3>
+    <label>Usuario</label><select id="lUsr"></select>
+    <label>PIN</label><input type="text" id="lPin" class="pin" inputmode="numeric" maxlength="8" autocomplete="off" data-lpignore="true" onkeydown="if(event.key==='Enter')ingresar()">
+    <button class="btn p" onclick="ingresar()">Ingresar</button>
+    <div class="ayuda">Los usuarios y PIN se administran en la pestaña USUARIOS de la planilla. Todo lo que se hace queda registrado en el LOG.</div>
+  </div>
+</section>
+
+<!-- ================= INICIO ================= -->
+<section class="view" id="v-inicio">
+  <div class="card">
+    <h3 id="hUsr"></h3>
     <label>Depósito</label>
     <select id="selDep" onchange="guardarCtx()"></select>
-    <label>Entregado por</label>
-    <select id="selUsr" onchange="guardarCtx()"></select>
-    <div class="ayuda">Se recuerdan en este dispositivo. El PIN se pide al registrar cada entrega.</div>
+    <select id="selUsr" style="display:none"></select>
+    <div class="ayuda" id="hRol"></div>
   </div>
   <div class="menu">
-    <button class="btn s" onclick="nuevaEntrega()">📦 Nueva entrega<small>Registrar EPP con firma del trabajador</small></button>
-    <button class="btn s" onclick="abrirGrupal()">👥 Entrega grupal<small>Mismos EPP a varias personas: cada una firma en su nombre</small></button>
+    <button class="btn s rol-ent" onclick="nuevaEntrega()">📦 Nueva entrega<small>Registrar EPP con firma del trabajador</small></button>
+    <button class="btn s rol-ent" onclick="abrirGrupal()">👥 Entrega grupal<small>Mismos EPP a varias personas: cada una firma en su nombre</small></button>
     <button class="btn s" onclick="abrirGrupos()">🗂 Planillas grupales<small>Volver a descargar la planilla de una entrega grupal anterior</small></button>
     <button class="btn s" onclick="goTo('v-buscar')">👤 Consultar trabajador<small>Historial, estado según matriz y constancia SRT 299/11</small></button>
     <button class="btn s" onclick="abrirPanel()">📊 Panel de control<small>Cumplimiento por razón social y depósito</small></button>
+    <button class="btn s rol-adm" onclick="abrirLog()">📜 Log de cambios<small>Quién hizo qué y cuándo (app y ediciones de la planilla)</small></button>
     <button class="btn s" onclick="refrescarDatos()" style="padding:12px;text-align:center;font-size:14px">↻ Actualizar datos de la planilla</button>
+    <button class="btn s" onclick="salir()" style="padding:12px;text-align:center;font-size:14px">Salir</button>
   </div>
+</section>
+
+<!-- ================= LOG ================= -->
+<section class="view" id="v-log">
+  <div class="card">
+    <div class="row"><div><label>Buscar</label><input id="logQ" oninput="pintarLog()" placeholder="Usuario, acción, DNI, grupo…"></div>
+    <div><label>Origen</label><select id="logO" onchange="pintarLog()"><option value="">Todos</option><option>APP</option><option>PLANILLA</option><option>SISTEMA</option></select></div></div>
+  </div>
+  <div id="logLista"></div>
 </section>
 
 <!-- ================= ENTREGA GRUPAL ================= -->
@@ -125,7 +146,7 @@ input.edit{border:2px solid var(--B)}
     </div>
     <button class="btn s" onclick="gAgregarItem()">+ Agregar al kit</button>
     <div id="gKit" style="margin-top:10px"></div>
-    <div class="ayuda">El talle se puede cambiar persona por persona al momento de firmar.</div>
+    <div class="ayuda">Sólo elementos sin talle (guantes, anteojos, protección auditiva, casco, etc.). Ropa y calzado se entregan de forma individual desde "Nueva entrega".</div>
   </div>
 
   <div class="card" id="gPaso2">
@@ -140,7 +161,6 @@ input.edit{border:2px solid var(--B)}
     <h3>3 · Firmas</h3>
     <div class="row">
       <div><label>Fecha de entrega</label><input type="date" id="gFecha" class="edit"></div>
-      <div><label>PIN de quien entrega</label><input type="text" id="gPin" class="pin" inputmode="numeric" maxlength="8" autocomplete="off" data-lpignore="true"></div>
     </div>
     <div class="chk"><input type="checkbox" id="gCap"><span>Se brindó información / capacitación sobre el uso correcto de los EPP del kit.</span></div>
     <div id="gResumen"></div>
@@ -202,8 +222,6 @@ input.edit{border:2px solid var(--B)}
     <label>Firma del trabajador</label>
     <canvas id="firma"></canvas>
     <button class="btn s" onclick="limpiarFirma()" style="padding:10px">Borrar firma</button>
-    <label>PIN de quien entrega</label>
-    <input type="text" id="inPin" class="pin" inputmode="numeric" maxlength="8" autocomplete="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="pin-entrega-x">
     <button class="btn p" id="btnReg" onclick="registrar()">Registrar entrega</button>
   </div>
 </section>
@@ -267,21 +285,23 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','
 function mostrarToast(m,t='ok'){const e=q('toast');e.textContent=m;e.className=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',t==='err'?6000:3000)}
 let _spinN=0,_spinT=null;
 function spin(on){_spinN+=on?1:-1;clearTimeout(_spinT);if(_spinN>0)_spinT=setTimeout(()=>q('spin').style.display='flex',350);else q('spin').style.display='none'}
+let SES=null;try{SES=JSON.parse(localStorage.getItem('eppSes')||'null')}catch(e){}
+function chequeoSesion(j){if(!j.ok&&/^SESION/.test(j.error||'')){try{localStorage.removeItem('eppSes')}catch(e){}SES=null;mostrarToast('La sesión venció: volvé a ingresar','err');pantallaIngreso();throw new Error('Sesión vencida')}}
 async function api(params,silencioso){
   if(!silencioso)spin(true);
-  try{const r=await fetch(API+'?'+new URLSearchParams(params));const j=await r.json();if(!j.ok)throw new Error(j.error);return j}
+  try{const r=await fetch(API+'?'+new URLSearchParams({...params,token:SES?SES.token:''}));const j=await r.json();chequeoSesion(j);if(!j.ok)throw new Error(j.error);return j}
   finally{if(!silencioso)spin(false)}
 }
 async function apiPost(body){
   spin(true);
-  try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});const j=await r.json();if(!j.ok)throw new Error(j.error);return j}
+  try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,token:SES?SES.token:''})});const j=await r.json();chequeoSesion(j);if(!j.ok)throw new Error(j.error);return j}
   finally{spin(false)}
 }
-const TIT={'v-inicio':'Entrega de EPP','v-buscar':'Consultar trabajador','v-entrega':'Nueva entrega','v-persona':'Ficha del trabajador','v-grupal':'Entrega grupal','v-grupos':'Planillas grupales','v-panel':'Panel de control EPP'};
+const TIT={'v-inicio':'Entrega de EPP','v-buscar':'Consultar trabajador','v-entrega':'Nueva entrega','v-persona':'Ficha del trabajador','v-grupal':'Entrega grupal','v-login':'Entrega de EPP','v-log':'Log de cambios','v-grupos':'Planillas grupales','v-panel':'Panel de control EPP'};
 function goTo(v,push=true){
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id===v));
   if(push&&historia[historia.length-1]!==v)historia.push(v);
-  q('titulo').textContent=TIT[v];q('btnBack').style.display=v==='v-inicio'?'none':'block';
+  q('titulo').textContent=TIT[v];q('btnBack').style.display=(v==='v-inicio'||v==='v-login')?'none':'block';
   q('main').classList.toggle('wide',v==='v-panel');window.scrollTo(0,0);
 }
 function volver(){historia.pop();goTo(historia[historia.length-1]||'v-inicio',false)}
@@ -290,6 +310,29 @@ function fmt(f){return f?f.split('-').reverse().join('/'):''}
 function empTxt(id){const e=D.empresas[id];return e?e.razon:'—'}
 function depTxt(id){const d=D.depositos.find(x=>x.id===id);return d?d.nombre:(id||'—')}
 function pillEstado(e){return {'EN REGLA':'<span class="pill g">EN REGLA</span>','POR VENCER':'<span class="pill a">POR VENCER</span>','VENCIDO':'<span class="pill r">VENCIDO</span>','FALTANTE':'<span class="pill r">FALTANTE</span>','SIN CATÁLOGO':'<span class="pill n">SIN CATÁLOGO</span>'}[e]||e}
+
+// ===================== UTILIDADES DE EPP Y FIRMA =====================
+// Artículo con talle (ropa y calzado): N° 42, TALLE, S/M/L/XL/2XL…, 38-40
+const RX_TALLE=/N° ?\d{2}\b|\bTALLE\b|\b(XXS|XS|S|M|L|XL|XXL|XXXL|[2-5]XL)\b(?!-)|\b\d{2}[-/]\d{2}\b/i;
+const conTalle=c=>RX_TALLE.test(c.modelo||'');
+/** Firma → PNG recortado al trazo (sin bordes blancos), manteniendo su proporción real. */
+function firmaRecortada(c){
+  const w=c.width,h=c.height,px=c.getContext('2d').getImageData(0,0,w,h).data;
+  let x0=w,y0=h,x1=-1,y1=-1;
+  for(let y=0;y<h;y+=2)for(let x=0;x<w;x+=2){const i=(y*w+x)*4;if(px[i+3]>40&&px[i]<200){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
+  if(x1<0){x0=0;y0=0;x1=w-1;y1=h-1}
+  const m=Math.round(Math.max(w,h)*0.02);x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(w-1,x1+m);y1=Math.min(h-1,y1+m);
+  const cw=x1-x0+1,ch=y1-y0+1,esc=Math.min(1,600/cw);
+  const o=document.createElement('canvas');o.width=Math.round(cw*esc);o.height=Math.round(ch*esc);
+  const x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,o.width,o.height);x.drawImage(c,x0,y0,cw,ch,0,0,o.width,o.height);
+  return o.toDataURL('image/png');
+}
+/** Dibuja la firma dentro de la celda del PDF SIN deformarla (encaja y centra conservando proporción). */
+function firmaEnCelda(doc,img,cell){
+  let iw=1,ih=1;try{const pr=doc.getImageProperties(img);iw=pr.width;ih=pr.height}catch(e){}
+  const bw=cell.width-3,bh=cell.height-2,k=Math.min(bw/iw,bh/ih),w=iw*k,h=ih*k;
+  doc.addImage(img,'PNG',cell.x+(cell.width-w)/2,cell.y+(cell.height-h)/2,w,h);
+}
 
 // ===================== INICIO =====================
 async function cargar(){
@@ -301,10 +344,18 @@ async function cargar(){
 }
 function pintarInicio(){
   const dep=q('selDep').value,usr=q('selUsr').value;
-  q('selDep').innerHTML=D.depositos.map(d=>`<option value="${d.id}">${esc(d.nombre)}</option>`).join('');
-  q('selUsr').innerHTML='<option value="">— Elegir —</option>'+D.entregadores.map(u=>`<option>${esc(u.nombre)}</option>`).join('');
-  q('selMot').innerHTML=D.motivos.map(m=>`<option>${m}</option>`).join('');
-  try{const c=JSON.parse(localStorage.getItem('eppCtx')||'{}');q('selDep').value=dep||c.dep||q('selDep').value;q('selUsr').value=usr||c.usr||''}catch(e){}
+  const todos=SES.usuario.depositos.includes('TODOS');
+  const deps=D.depositos.filter(d=>todos||SES.usuario.depositos.includes(d.id));
+  q('selDep').innerHTML=(deps.length?deps:D.depositos).map(d=>`<option value="${d.id}">${esc(d.nombre)}</option>`).join('');
+  q('selUsr').innerHTML=`<option>${esc(SES.usuario.nombre)}</option>`;
+  q('hUsr').textContent=SES.usuario.nombre;
+  const rol=SES.usuario.rol;
+  q('hRol').textContent={ADMIN:'Administrador: acceso completo y log de cambios',ENTREGADOR:'Entregador: registra entregas en '+(todos?'todos los depósitos':deps.map(d=>d.nombre).join(', ')),CONSULTA:'Consulta: fichas, constancias, panel y planillas (no registra entregas)'}[rol]||rol;
+  document.querySelectorAll('.rol-ent').forEach(b=>b.style.display=rol==='CONSULTA'?'none':'');
+  document.querySelectorAll('.rol-adm').forEach(b=>b.style.display=rol==='ADMIN'?'':'none');
+  q('selMot').innerHTML='<option value="">— Motivo —</option>'+D.motivos.map(m=>`<option>${m}</option>`).join('');
+  try{const c=JSON.parse(localStorage.getItem('eppCtx')||'{}');const dd=dep||c.dep;if(dd&&[...q('selDep').options].some(o=>o.value===dd))q('selDep').value=dd}catch(e){}
+  q('selUsr').value=SES.usuario.nombre;
   guardarCtx();
 }
 // Caché de fichas consultadas en esta sesión (se invalida al registrar)
@@ -315,7 +366,7 @@ async function getPersona(dni,forzar){
 }
 function guardarCtx(){
   try{localStorage.setItem('eppCtx',JSON.stringify({dep:q('selDep').value,usr:q('selUsr').value}))}catch(e){}
-  q('ctx').innerHTML=D?esc(depTxt(q('selDep').value))+'<br>'+esc(q('selUsr').value||'sin entregador'):'';
+  q('ctx').innerHTML=D&&SES?esc(depTxt(q('selDep').value))+'<br>'+esc(SES.usuario.nombre):'';
 }
 
 // ===================== BUSCADOR =====================
@@ -339,9 +390,9 @@ async function refrescarDatos(){            // fuerza a releer la planilla (desc
 
 // ===================== NUEVA ENTREGA =====================
 function nuevaEntrega(dni){
-  if(!q('selUsr').value){mostrarToast('Elegí primero quién entrega','err');goTo('v-inicio');return}
+  if(SES.usuario.rol==='CONSULTA')return mostrarToast('Tu usuario es de consulta: no registra entregas','err');
   trab=null;trabData=null;items=[];q('fichaEnt').innerHTML='';q('bxItems').style.display='none';q('bxFirma').style.display='none';
-  q('inFecha').value=hoyISO();q('chkCap').checked=false;q('chkDJ').checked=false;q('inPin').value='';
+  q('inFecha').value=hoyISO();q('chkCap').checked=false;q('chkDJ').checked=false;
   goTo('v-entrega');
   if(dni)elegirTrabajador(dni);
 }
@@ -404,13 +455,17 @@ function infoPrevio(){
   const p=trabData.entregas.find(e=>e.tipo===t);
   q('prevInfo').textContent=p?`Entrega previa de ${t}: ${fmt(p.fecha)} — ${p.modelo} (${p.motivo})`:`Sin entrega previa de ${t}`;
 }
+function limpiarSelector(){   // deja el selector en blanco para el próximo elemento
+  q('selTipo').value='';cascada('manual');q('inCod').value='';q('inObs').value='';q('inCant').value=1;q('selMot').value='';q('prevInfo').textContent='';
+}
 function agregarItem(){
   const cod=q('inCod').value.trim()||q('selModelo').value;
   const c=D.catalogo.find(x=>x.codigo===cod);
   if(!c){mostrarToast('Elegí un modelo o un código válido','err');return}
   const cant=parseInt(q('inCant').value,10)||0;if(cant<1){mostrarToast('Cantidad inválida','err');return}
+  if(!q('selMot').value){mostrarToast('Elegí el motivo de la entrega','err');return}
   items.push({codigo:c.codigo,tipo:c.tipo,marca:c.marca,modelo:c.modelo,cantidad:cant,motivo:q('selMot').value,obs:q('inObs').value.trim()});
-  q('inCod').value='';q('inObs').value='';q('inCant').value=1;renderItems();mostrarToast('Agregado: '+c.tipo);
+  limpiarSelector();renderItems();mostrarToast('Agregado: '+c.tipo);
 }
 function quitarItem(i){items.splice(i,1);renderItems()}
 function renderItems(){
@@ -429,20 +484,14 @@ function initFirma(){
   c.onpointerup=c.onpointercancel=()=>fDibujo=false;
 }
 function limpiarFirma(){initFirma()}
-function firmaPNG(){
-  // recorta y reduce para no pesar de más
-  const c=q('firma');const o=document.createElement('canvas');o.width=500;o.height=Math.round(500*c.height/c.width);
-  const x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,o.width,o.height);x.drawImage(c,0,0,o.width,o.height);
-  return o.toDataURL('image/png');
-}
+function firmaPNG(){return firmaRecortada(q('firma'))}
 async function registrar(){
   if(!items.length)return mostrarToast('Agregá al menos un EPP','err');
   if(!q('chkDJ').checked)return mostrarToast('El trabajador debe aceptar la declaración jurada','err');
   if(!fTiene)return mostrarToast('Falta la firma del trabajador','err');
-  if(!q('inPin').value)return mostrarToast('Ingresá el PIN de quien entrega','err');
   q('btnReg').disabled=true;
   try{
-    const r=await apiPost({action:'registrar',dni:trab.dni,deposito:q('selDep').value,entregador:q('selUsr').value,pin:q('inPin').value,
+    const r=await apiPost({action:'registrar',dni:trab.dni,deposito:q('selDep').value,
       fecha:q('inFecha').value,capacitado:q('chkCap').checked,declaracion:true,items,firma:firmaPNG()});
     mostrarToast(`Entrega ${r.lote} registrada (${r.lineas} ítems) — ${r.empresa}`);
     const dni=trab.dni;cachePer.delete(dni);panelData=null;nuevaEntrega();abrirPersona(dni,true);
@@ -522,7 +571,7 @@ async function pdfConstancia(){
     didDrawPage:()=>head(),
     didDrawCell:d=>{
       if(d.section!=='body'||d.column.index!==7)return;const l=j.lineas[(+d.row.raw[0])-1];if(!l)return;
-      if(l.origen==='APP'&&j.firmas[l.firma]){try{doc.addImage(j.firmas[l.firma],'PNG',d.cell.x+1,d.cell.y+0.8,d.cell.width-2,d.cell.height-1.6)}catch(e){}}
+      if(l.origen==='APP'&&j.firmas[l.firma]){try{firmaEnCelda(doc,j.firmas[l.firma],d.cell)}catch(e){}}
       else{doc.setFontSize(6);doc.setTextColor(110);doc.text('Firmado en Wiiprot\n'+l.id,d.cell.x+1.5,d.cell.y+5);doc.setTextColor(0)}
     }});
   const n=doc.internal.getNumberOfPages();
@@ -571,11 +620,11 @@ function gNueva(){
   q('gFecha').value=hoyISO();q('gCap').checked=false;
 }
 function abrirGrupal(){
-  if(!q('selUsr').value){mostrarToast('Elegí primero quién entrega','err');goTo('v-inicio');return}
+  if(SES.usuario.rol==='CONSULTA')return mostrarToast('Tu usuario es de consulta: no registra entregas','err');
   if(!G){try{G=JSON.parse(localStorage.getItem('eppGrupal')||'null')}catch(e){G=null}}
   if(!G)gNueva();
   G.personas.forEach(p=>{if(p.estado==='enviando')p.estado='pendiente'});   // si se cortó a mitad de un envío
-  q('gMot').innerHTML=D.motivos.map(m=>`<option>${m}</option>`).join('');
+  q('gMot').innerHTML='<option value="">— Motivo —</option>'+D.motivos.map(m=>`<option>${m}</option>`).join('');
   if(!q('gFecha').value)q('gFecha').value=hoyISO();
   const dep=q('selDep').value;
   const puestos=[...new Set(D.personas.filter(p=>p.deposito===dep).map(p=>p.puesto).filter(Boolean))].sort();
@@ -583,7 +632,7 @@ function abrirGrupal(){
   gCascada('init');gPintar();goTo('v-grupal');
 }
 function gCascada(n){
-  const cat=D.catalogo,uniq=a=>[...new Set(a)].sort();
+  const cat=D.catalogo.filter(c=>!conTalle(c)),uniq=a=>[...new Set(a)].sort();
   if(n==='init'){q('gTipo').innerHTML='<option value="">—</option>'+uniq(cat.map(c=>c.tipo)).map(t=>`<option>${esc(t)}</option>`).join('');n='tipo'}
   const t=q('gTipo').value;
   if(n==='tipo')q('gMarca').innerHTML='<option value="">—</option>'+uniq(cat.filter(c=>c.tipo===t).map(c=>c.marca)).map(m=>`<option>${esc(m)}</option>`).join('');
@@ -594,9 +643,11 @@ function gAgregarItem(){
   if(G.personas.some(p=>p.estado==='ok'))return mostrarToast('Ya hay personas firmadas: no se puede cambiar el kit. Empezá otra entrega grupal.','err');
   const cod=q('gCod').value.trim()||q('gModelo').value;const c=D.catalogo.find(x=>x.codigo===cod);
   if(!c)return mostrarToast('Elegí un modelo o un código válido','err');
+  if(conTalle(c))return mostrarToast('Ese artículo tiene talle: ropa y calzado se entregan de forma individual','err');
   const cant=parseInt(q('gCant').value,10)||0;if(cant<1)return mostrarToast('Cantidad inválida','err');
+  if(!q('gMot').value)return mostrarToast('Elegí el motivo de la entrega','err');
   G.kit.push({codigo:c.codigo,tipo:c.tipo,marca:c.marca,modelo:c.modelo,cantidad:cant,motivo:q('gMot').value});
-  q('gCod').value='';q('gCant').value=1;gGuardar();gPintar();
+  q('gTipo').value='';gCascada('tipo');q('gCod').value='';q('gCant').value=1;q('gMot').value='';gGuardar();gPintar();
 }
 function gQuitarItem(i){if(G.personas.some(p=>p.estado==='ok'))return mostrarToast('Ya hay firmas: el kit está cerrado','err');G.kit.splice(i,1);gGuardar();gPintar()}
 function gEstadoPersona(p){
@@ -638,22 +689,18 @@ function nuevoPad(id){
   c.onpointerdown=e=>{dib=true;c.setPointerCapture(e.pointerId);const[x,y]=pos(e);ctx.beginPath();ctx.moveTo(x,y)};
   c.onpointermove=e=>{if(!dib)return;const[x,y]=pos(e);ctx.lineTo(x,y);ctx.stroke();tiene=true};
   c.onpointerup=c.onpointercancel=()=>dib=false;
-  return{init,limpiar:init,tiene:()=>tiene,png:()=>{const o=document.createElement('canvas');o.width=500;o.height=Math.round(500*c.height/c.width);
-    const x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,o.width,o.height);x.drawImage(c,0,0,o.width,o.height);return o.toDataURL('image/png')}};
+  return{init,limpiar:init,tiene:()=>tiene,png:()=>firmaRecortada(c)};
 }
 let gPad=null,gActual=null;
 function gAbrirFirma(dni){
   if(!G.kit.length)return mostrarToast('Primero armá el kit (paso 1)','err');
-  if(!q('gPin').value)return mostrarToast('Ingresá el PIN de quien entrega (paso 3)','err');
   const p=G.personas.find(x=>x.dni===dni);const per=D.personas.find(x=>x.dni===dni);const emp=D.empresas[per.empresa];
   if(p.estado==='error'&&p.firmaMem){gEnviar(p);return}            // reintento sin volver a firmar
   gActual=p;p.talles=p.talles||G.kit.map(it=>it.codigo);
   q('mNom').textContent=p.nombre;
   q('mDat').textContent=`DNI ${p.dni} · ${emp.razon}${emp.tipo==='CONTRATISTA'&&emp.proveedor?' (contratista, provee '+emp.proveedor.razon+')':''} · ${per.puesto||''}`;
   q('mItems').innerHTML=G.kit.map((it,i)=>{
-    const alt=D.catalogo.filter(c=>c.tipo===it.tipo&&c.marca===it.marca);
-    const sel=alt.length>1?`<select onchange="gActual.talles[${i}]=this.value" style="margin-top:4px;padding:8px;font-size:14px">${alt.sort((a,b)=>a.modelo.localeCompare(b.modelo)).map(c=>`<option value="${c.codigo}" ${c.codigo===p.talles[i]?'selected':''}>${esc(c.modelo)}</option>`).join('')}</select>`:`<div class="x">${esc(it.modelo)}</div>`;
-    return `<div class="item"><div class="t">${esc(it.tipo)} ×${it.cantidad} · ${esc(it.motivo)}</div>${sel}</div>`}).join('');
+    return `<div class="item"><div class="t">${esc(it.tipo)} ×${it.cantidad} · ${esc(it.motivo)}</div><div class="m">${esc(it.modelo)}</div></div>`}).join('');
   const quien=emp.tipo==='CONTRATISTA'&&emp.proveedor?`${emp.proveedor.razon}, por cuenta de mi empleador ${emp.razon},`:emp.razon;
   q('mTxt').textContent=`Declaro bajo juramento haber recibido de ${quien} los elementos detallados, en buen estado, y me comprometo a usarlos y conservarlos según las indicaciones recibidas.`;
   q('mDJ').checked=false;q('modal').style.display='flex';
@@ -674,19 +721,19 @@ async function gProcesar(){
     const p=gCola.shift();
     const items=G.kit.map((it,i)=>({codigo:(p.talles&&p.talles[i])||it.codigo,cantidad:it.cantidad,motivo:it.motivo,obs:''}));
     try{
-      const r=await apiPostSilencioso({action:'registrar',dni:p.dni,deposito:q('selDep').value,entregador:q('selUsr').value,pin:q('gPin').value,
+      const r=await apiPostSilencioso({action:'registrar',dni:p.dni,deposito:q('selDep').value,
         fecha:q('gFecha').value,capacitado:q('gCap').checked,declaracion:true,items,firma:p.firmaMem,grupo:G.id});
       p.estado='ok';p.lote=r.lote;p.hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
       p.items=items.map(x=>{const c=D.catalogo.find(k=>k.codigo===x.codigo)||{};return{tipo:c.tipo,modelo:c.modelo,marca:c.marca,cert:c.cert,cantidad:x.cantidad}});
       cachePer.delete(p.dni);panelData=null;
-    }catch(e){p.estado='error';p.error=e.message;if(/PIN/i.test(e.message)){gCola.forEach(x=>{x.estado='error';x.error=e.message});gCola.length=0}}
+    }catch(e){p.estado='error';p.error=e.message;if(/SESION|permiso|habilitado para entregar/i.test(e.message)){gCola.forEach(x=>{x.estado='error';x.error=e.message});gCola.length=0}}
     gGuardar();gPintar();
   }
   gEnviando=false;
 }
 async function apiPostSilencioso(body){
-  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
-  const j=await r.json();if(!j.ok)throw new Error(j.error);return j;
+  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,token:SES?SES.token:''})});
+  const j=await r.json();chequeoSesion(j);if(!j.ok)throw new Error(j.error);return j;
 }
 // Planilla grupal de respaldo (las constancias legales por trabajador siguen saliendo desde su ficha)
 async function gPlanillaPDF(){   // desde la sesión abierta
@@ -697,7 +744,7 @@ async function gPlanillaPDF(){   // desde la sesión abierta
 }
 async function abrirGrupos(){
   let j;try{j=await api({action:'grupos'})}catch(e){mostrarToast(e.message,'err');return}
-  q('grpLista').innerHTML=j.grupos.length?j.grupos.map(g=>`<div class="gp" style="cursor:pointer" onclick="descargarGrupo('${g.id}')"><div><div class="n">${g.id} · ${fmt(g.fecha)}</div><div class="x">${esc(depTxt(g.deposito))} · Entregó ${esc(g.entregador)} · ${g.personas} personas</div></div><span class="pill d" style="background:var(--N)">PDF</span></div>`).join('')
+  q('grpLista').innerHTML=j.grupos.length?j.grupos.map(g=>`<div class="gp" style="cursor:pointer" onclick="descargarGrupo('${g.id}')"><div><div class="n">${g.id} · ${fmt(g.fecha)}</div><div class="x">${esc(depTxt(g.deposito))} · Entregó ${esc(g.entregador)} · ${g.personas} personas</div></div><span class="pill" style="background:var(--N)">PDF</span></div>`).join('')
     :'<div class="ayuda">Todavía no hay entregas grupales registradas.</div>';
   goTo('v-grupos');
 }
@@ -725,7 +772,7 @@ async function planillaGrupalPDF(g){
     columnStyles:{0:{cellWidth:9},1:{cellWidth:48},2:{cellWidth:22},3:{cellWidth:32},4:{cellWidth:'auto'},5:{cellWidth:34},6:{cellWidth:45}},
     didDrawPage:()=>head(),
     didDrawCell:d=>{if(d.section!=='body'||d.column.index!==6)return;const p=g.filas[(+d.row.raw[0])-1];
-      if(p&&p.firma){try{doc.addImage(p.firma,'PNG',d.cell.x+1,d.cell.y+0.8,d.cell.width-2,d.cell.height-1.6)}catch(e){}}
+      if(p&&p.firma){try{firmaEnCelda(doc,p.firma,d.cell)}catch(e){}}
       else{doc.setFontSize(6);doc.setTextColor(110);doc.text('Firma registrada en el sistema',d.cell.x+1.5,d.cell.y+5);doc.setTextColor(0)}}});
   const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(110);
     doc.text('Respaldo operativo. La constancia Res. SRT 299/11 de cada trabajador se emite por razón social desde su ficha.',10,205);doc.text('Página '+i+' de '+n,W-10,205,{align:'right'})}
@@ -733,7 +780,39 @@ async function planillaGrupalPDF(g){
 }
 window.addEventListener('beforeunload',e=>{if(G&&(gEnviando||gCola.length)){e.preventDefault();e.returnValue=''}});
 
-cargar();
+// ===================== INGRESO / SALIDA =====================
+async function pantallaIngreso(){
+  historia=['v-login'];goTo('v-login',false);q('ctx').innerHTML='';
+  try{const j=await api({action:'usuarios'});q('lUsr').innerHTML='<option value="">— Elegir —</option>'+j.usuarios.map(u=>`<option>${esc(u)}</option>`).join('');
+    try{const ult=localStorage.getItem('eppUltUsr');if(ult)q('lUsr').value=ult}catch(e){}}
+  catch(e){mostrarToast('No se pudo conectar: '+e.message,'err')}
+}
+async function ingresar(){
+  const usuario=q('lUsr').value,pin=q('lPin').value;if(!usuario||!pin)return mostrarToast('Elegí tu usuario e ingresá el PIN','err');
+  try{const j=await api({action:'login',usuario,pin});SES={token:j.token,usuario:j.usuario};
+    try{localStorage.setItem('eppSes',JSON.stringify(SES));localStorage.setItem('eppUltUsr',usuario)}catch(e){}
+    q('lPin').value='';historia=['v-inicio'];goTo('v-inicio',false);cargar()}
+  catch(e){mostrarToast(e.message,'err')}
+}
+async function salir(){
+  try{await api({action:'salir'},true)}catch(e){}
+  try{['eppSes','eppInit2','eppGrupal'].forEach(k=>localStorage.removeItem(k))}catch(e){}SES=null;D=null;G=null;cachePer.clear();panelData=null;pantallaIngreso();
+}
+// ===================== LOG DE CAMBIOS (ADMIN) =====================
+let LOGD=[];
+async function abrirLog(){
+  try{LOGD=(await api({action:'log',n:1000})).log}catch(e){mostrarToast(e.message,'err');return}
+  goTo('v-log');pintarLog();
+}
+function pintarLog(){
+  const t=norm(q('logQ').value),o=q('logO').value;
+  const L=LOGD.filter(r=>(!o||r.origen===o)&&(!t||norm([r.usuario,r.accion,r.detalle,r.dni,r.ref].join(' ')).includes(t))).slice(0,400);
+  const col=a=>/FALLIDO|BLOQUEADO|MANUAL DE ENTREGAS/.test(a)?'var(--R)':/ENTREGA/.test(a)?'var(--G)':/EDICI/.test(a)?'var(--A)':'var(--GT)';
+  q('logLista').innerHTML=L.map(r=>`<div class="card" style="padding:10px;margin-bottom:6px;border-left:4px solid ${col(r.accion)}"><div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:14px">${esc(r.accion)}</b><span class="ayuda">${esc(r.ts)}</span></div>
+    <div class="ayuda">${esc(r.usuario)}${r.rol?' · '+esc(r.rol):''} · ${esc(r.origen)}${r.dni?' · DNI '+esc(r.dni):''}${r.ref?' · '+esc(r.ref):''}</div>${r.detalle?`<div style="font-size:13px;margin-top:3px">${esc(r.detalle)}</div>`:''}</div>`).join('')||'<div class="ayuda">Sin registros.</div>';
+}
+
+if(SES){historia=['v-inicio'];goTo('v-inicio',false);cargar()}else pantallaIngreso();
 </script>
 </body>
 </html>
