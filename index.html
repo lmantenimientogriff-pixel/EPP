@@ -2,15 +2,26 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Entrega de EPP</title>
+<!-- App en pantalla de inicio (iPhone / Android) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Entrega EPP">
+<meta name="application-name" content="Entrega EPP">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#1a1a1a">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--R:#C00000;--N:#1a1a1a;--BG:#f4f5f7;--BO:#e0e2e8;--GT:#6b7280;--G:#1D9E75;--A:#EF9F27;--O:#E07B39;--B:#378ADD}
 *{box-sizing:border-box}
 body{margin:0;background:var(--BG);font-family:Calibri,"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;color:var(--N)}
-header{position:sticky;top:0;z-index:10;height:52px;background:var(--N);display:flex;align-items:center;gap:10px;padding:0 14px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+header{position:sticky;top:0;z-index:10;height:calc(52px + env(safe-area-inset-top));background:var(--N);display:flex;align-items:center;gap:10px;padding:env(safe-area-inset-top) 14px 0;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .badge-emp{background:var(--R);color:#fff;font-size:11px;font-weight:700;letter-spacing:2px;padding:4px 8px;border-radius:2px}
 header h1{color:#fff;font-size:15px;font-weight:600;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .back{background:rgba(255,255,255,.12);border:0;color:#fff;font-size:20px;width:34px;height:34px;border-radius:4px;cursor:pointer;display:none}
